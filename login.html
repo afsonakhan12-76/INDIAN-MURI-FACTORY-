@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Login | INDIAN MURI FACTORY</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+*{box-sizing:border-box}
+body{
+margin:0;
+min-height:100vh;
+display:flex;
+align-items:center;
+justify-content:center;
+background:#edf5ef;
+font-family:Arial,sans-serif;
+padding:18px
+}
+.login{
+background:white;
+width:100%;
+max-width:390px;
+padding:30px;
+border-radius:14px;
+box-shadow:0 8px 30px #0001
+}
+h2{text-align:center;color:#166534}
+p{text-align:center;color:#64748b}
+label{display:block;margin:18px 0 7px}
+input{
+width:100%;
+padding:13px;
+border:1px solid #cbd5e1;
+border-radius:7px;
+font-size:15px
+}
+button{
+width:100%;
+padding:14px;
+margin-top:22px;
+background:#15803d;
+color:white;
+border:0;
+border-radius:7px;
+font-size:16px;
+cursor:pointer
+}
+button:disabled{opacity:.6}
+#message{color:#dc2626;text-align:center;font-size:14px}
+</style>
+</head>
+<body>
+<div class="login">
+<h2>🏭 INDIAN MURI FACTORY</h2>
+<p>Administrator Login</p>
+
+<form id="loginForm">
+<label>Email Address</label>
+<input type="email" id="email" required autocomplete="username">
+
+<label>Password</label>
+<input type="password" id="password" required autocomplete="current-password">
+
+<button id="loginBtn" type="submit">Login</button>
+</form>
+<p id="message"></p>
+</div>
+
+<script>
+const config = window.SUPABASE_CONFIG;
+
+if (!config || !config.URL || !config.KEY) {
+ document.getElementById("message").textContent =
+ "Configuration missing. Please check config.js";
+ throw new Error("Supabase configuration missing");
+}
+
+const db = window.supabase.createClient(
+ config.URL,
+ config.KEY
+);
+
+document.getElementById("loginForm").addEventListener("submit",async(e)=>{
+ e.preventDefault();
+
+ const btn=document.getElementById("loginBtn");
+ const msg=document.getElementById("message");
+
+ btn.disabled=true;
+ btn.textContent="Please wait...";
+ msg.textContent="";
+
+ try{
+  const {data,error}=await db.auth.signInWithPassword({
+   email:document.getElementById("email").value.trim(),
+   password:document.getElementById("password").value
+  });
+
+  if(error) throw error;
+
+  if(!data.session) throw new Error("Login session not created");
+
+  location.href="index.html";
+ }catch(error){
+  msg.textContent=error.message;
+ }finally{
+  btn.disabled=false;
+  btn.textContent="Login";
+ }
+});
+</script>
+</body>
+</html>
