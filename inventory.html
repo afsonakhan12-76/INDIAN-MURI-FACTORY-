@@ -1,0 +1,165 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inventory | INDIAN MURI FACTORY</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f1f5f9;font-family:Arial,sans-serif;color:#1e293b}
+header{background:#166534;color:white;padding:18px}
+header h2{margin:0}
+.container{padding:18px;max-width:1200px;margin:auto}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+button{border:0;border-radius:7px;padding:11px 16px;background:#15803d;color:white;cursor:pointer}
+.back{background:#334155}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin:20px 0}
+.card,.panel{background:white;padding:18px;border-radius:12px;box-shadow:0 2px 8px #00000010}
+.card small{color:#64748b}
+.card h2{margin-bottom:0;color:#15803d}
+.panel{margin-top:18px}
+input,select{padding:11px;border:1px solid #cbd5e1;border-radius:7px;width:100%;margin:6px 0}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th,td{padding:12px;border-bottom:1px solid #e2e8f0;text-align:left}
+th{background:#f8fafc}
+.status{color:#15803d;font-weight:bold}
+#message{margin-top:12px;color:#b91c1c}
+</style>
+</head>
+<body>
+
+<header>
+<h2>INDIAN MURI FACTORY</h2>
+<p>Inventory & Stock Management</p>
+</header>
+
+<div class="container">
+<div class="top">
+<h2>Inventory / Stock</h2>
+<button class="back" onclick="location.href='index.html'">← Dashboard</button>
+</div>
+
+<div class="cards">
+<div class="card">
+<small>Total Stock Items</small>
+<h2 id="totalItems">0</h2>
+</div>
+<div class="card">
+<small>Raw Material Stock</small>
+<h2 id="rawStock">0</h2>
+</div>
+<div class="card">
+<small>Finished Product Stock</small>
+<h2 id="finishedStock">0</h2>
+</div>
+</div>
+
+<div class="panel">
+<h3>Search Inventory</h3>
+<input id="search" placeholder="Search product or material..." oninput="filterRows()">
+</div>
+
+<div class="panel">
+<h3>Stock Overview</h3>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Item Name</th>
+<th>Category</th>
+<th>Available Stock</th>
+<th>Unit</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody id="stockRows">
+<tr><td colspan="5">Loading inventory...</td></tr>
+</tbody>
+</table>
+</div>
+<p id="message"></p>
+</div>
+</div>
+
+<script>
+const db = window.supabase.createClient(
+  window.SUPABASE_CONFIG.URL,
+  window.SUPABASE_CONFIG.KEY
+);
+
+let inventoryData = [];
+
+async function checkLogin(){
+  const {data,error} = await db.auth.getSession();
+
+  if(error || !data.session){
+    location.replace("login.html");
+    return false;
+  }
+  return true;
+}
+
+async function loadInventory(){
+  const loggedIn = await checkLogin();
+  if(!loggedIn) return;
+
+  const {data,error} = await db
+    .from("stock_balances")
+    .select("*");
+
+  if(error){
+    document.getElementById("stockRows").innerHTML =
+      '<tr><td colspan="5">Could not load stock data.</td></tr>';
+    document.getElementById("message").textContent =
+      error.message;
+    return;
+  }
+
+  inventoryData = data || [];
+  displayRows(inventoryData);
+}
+
+function displayRows(rows){
+  const tbody = document.getElementById("stockRows");
+  tbody.innerHTML = "";
+
+  if(!rows.length){
+    tbody.innerHTML =
+      '<tr><td colspan="5">No stock records found.</td></tr>';
+  }
+
+  rows.forEach(item=>{
+    const name = item.item_name || item.product_name || item.name || "Unnamed";
+    const category = item.category || "Stock";
+    const quantity = Number(item.quantity ?? item.balance ?? item.stock ?? 0);
+    const unit = item.unit || "KG";
+    const status = quantity > 0 ? "Available" : "Out of Stock";
+
+    const tr = document.createElement("tr");
+    [name,category,quantity,unit,status].forEach(value=>{
+      const td = document.createElement("td");
+      td.textContent = value;
+      if(value === status) td.className = "status";
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById("totalItems").textContent = rows.length;
+}
+
+function filterRows(){
+  const q = document.getElementById("search").value.toLowerCase();
+  displayRows(inventoryData.filter(item=>
+    JSON.stringify(item).toLowerCase().includes(q)
+  ));
+}
+
+loadInventory();
+</script>
+</body>
+</html>
