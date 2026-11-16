@@ -34,27 +34,24 @@ th{background:#dcfce7}
 
 <div class="panel">
 <h3>Add New Product</h3>
-<form id="productForm">
-<label>Product Name *</label>
-<input id="productName" required placeholder="Example: White Muri">
 
-<div class="grid">
-<div>
-<label>Category</label>
-<input id="category" placeholder="Example: Muri">
-</div>
-<div>
+<h3>Add New Product</h3>
+
+<label>Product Name</label>
+<input
+  type="text"
+  id="productName"
+  placeholder="Enter product name"
+>
+
 <label>Color Type</label>
-<input id="colorType" placeholder="Example: White">
-</div>
-</div>
+<select id="colorType">
+  <option value="White">White</option>
+  <option value="Colored">Colored</option>
+</select>
 
-<label>Description</label>
-<input id="description" placeholder="Product details">
+<button onclick="addProduct()">Save Product</button>
 
-<button type="submit">Save Product</button>
-</form>
-</div>
 
 <div class="panel">
 <h3>Add Bag Weight & Selling Price</h3>
