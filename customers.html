@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer Management</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:15px;background:#f1f5f9;font-family:Arial,sans-serif;color:#1e293b}
+header{background:#166534;color:white;padding:17px;border-radius:10px;margin-bottom:18px}
+h2{margin:0}
+.panel{background:white;padding:18px;border-radius:10px;margin-bottom:18px;box-shadow:0 2px 8px #0001}
+input,textarea{width:100%;padding:12px;margin:7px 0 13px;border:1px solid #cbd5e1;border-radius:7px;font-size:15px}
+button{border:0;border-radius:7px;padding:11px 16px;background:#15803d;color:white;font-size:15px;cursor:pointer;margin:3px}
+.delete{background:#dc2626}
+.edit{background:#2563eb}
+.back{background:#475569}
+table{width:100%;border-collapse:collapse;min-width:750px}
+th,td{padding:11px;border:1px solid #e2e8f0;text-align:left}
+th{background:#dcfce7}
+.table-wrap{overflow-x:auto}
+#status{font-weight:bold;margin:10px 0}
+</style>
+</head>
+<body>
+
+<header>
+<h2>🏭 INDIAN MURI FACTORY</h2>
+<p>Customer Management</p>
+<button class="back" onclick="location.href='index.html'">Back to Dashboard</button>
+<button onclick="logout()" style="background:#dc2626">Logout</button>
+</header>
+
+<div class="panel">
+<h3 id="formTitle">Add New Customer</h3>
+
+<form id="customerForm">
+<input type="hidden" id="customerId">
+
+<label>Customer Name *</label>
+<input id="name" required placeholder="Enter customer name">
+
+<label>Mobile Number</label>
+<input id="phone" type="tel" placeholder="Enter mobile number">
+
+<label>WhatsApp Number</label>
+<input id="whatsapp" type="tel" placeholder="Enter WhatsApp number">
+
+<label>Full Address</label>
+<textarea id="address" rows="3" placeholder="Enter customer address"></textarea>
+
+<label>Opening Balance (₹)</label>
+<input id="balance" type="number" step="0.01" value="0">
+
+<label>Notes</label>
+<textarea id="notes" rows="2" placeholder="Optional notes"></textarea>
+
+<button type="submit" id="saveBtn">Save Customer</button>
+<button type="button" class="back" onclick="resetForm()">Clear</button>
+</form>
+<div id="status"></div>
+</div>
+
+<div class="panel">
+<h3>Customer List</h3>
+<input id="search" placeholder="Search customer..." oninput="renderCustomers()">
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Phone</th>
+<th>WhatsApp</th>
+<th>Address</th>
+<th>Opening Balance</th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody id="customerRows"></tbody>
+</table>
+</div>
+</div>
+
+<script>
+const db = window.supabase.createClient(
+  window.SUPABASE_CONFIG.URL,
+  window.SUPABASE_CONFIG.KEY
+);
+
+let customers = [];
+
+async function checkLogin(){
+  const {data,error}=await db.auth.getSession();
+
+  if(error || !data.session){
+    location.replace("login.html");
+    return false;
+  }
+  document.body.style.display="block";
+  return true;
+}
+
+document.body.style.display="none";
+
+async function start(){
+  if(await checkLogin()) await loadCustomers();
+}
+start();
+
+async function logout(){
+  await db.auth.signOut();
+  location.replace("login.html");
+}
+
+function message(text){
+  document.getElementById("status").textContent=text;
+}
+
+async function loadCustomers(){
+  message("Loading customers...");
+
+  const {data,error}=await db
+    .from("customers")
+    .select("id,name,phone,whatsapp,address,opening_balance,notes")
+    .order("name");
+
+  if(error){
+    message("Error: "+error.message);
+    return;
+  }
+
+  customers=data||[];
+  message("Total Customers: "+customers.length);
+  renderCustomers();
+}
+
+function renderCustomers(){
+  const q=document.getElementById("search").value.toLowerCase();
+
+  const filtered=customers.filter(c=>
+    [c.name,c.phone,c.whatsapp,c.address]
+    .some(v=>(v||"").toLowerCase().includes(q))
+  );
+
+  document.getElementById("customerRows").innerHTML="";
+
+  filtered.forEach(c=>{
+    const tr=document.createElement("tr");
+
+    function cell(value){
+      const td=document.createElement("td");
+      td.textContent=value??"";
+      tr.appendChild(td);
+    }
+
+    cell(c.name);
+    cell(c.phone);
+    cell(c.whatsapp);
+    cell(c.address);
+    cell("₹"+Number(c.opening_balance||0).toFixed(2));
+
+    const td=document.createElement("td");
+
+    const edit=document.createElement("button");
+    edit.className="edit";
+    edit.textContent="Edit";
+    edit.onclick=()=>editCustomer(c.id);
+
+    const del=document.createElement("button");
+    del.className="delete";
+    del.textContent="Delete";
+    del.onclick=()=>deleteCustomer(c.id);
+
+    td.append(edit,del);
+    tr.appendChild(td);
+
+    document.getElementById("customerRows").appendChild(tr);
+  });
+}
+
+document.getElementById("customerForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+
+  const id=document.getElementById("customerId").value;
+
+  const customer={
+    name:document.getElementById("name").value.trim(),
+    phone:document.getElementById("phone").value.trim(),
+    whatsapp:document.getElementById("whatsapp").value.trim(),
+    address:document.getElementById("address").value.trim(),
+    opening_balance:Number(document.getElementById("balance").value||0),
+    notes:document.getElementById("notes").value.trim()
+  };
+
+  if(!customer.name){
+    message("Customer name is required.");
+    return;
+  }
+
+  document.getElementById("saveBtn").disabled=true;
+  message("Saving...");
+
+  let result;
+
+  if(id){
+    result=await db.from("customers").update(customer).eq("id",id);
+  }else{
+    result=await db.from("customers").insert(customer);
+  }
+
+  document.getElementById("saveBtn").disabled=false;
+
+  if(result.error){
+    message("Error: "+result.error.message);
+    return;
+  }
+
+  message(id?"Customer updated successfully!":"Customer added successfully!");
+  resetForm();
+  await loadCustomers();
+});
+
+function editCustomer(id){
+  const c=customers.find(x=>x.id===id);
+  if(!c)return;
+
+  document.getElementById("customerId").value=c.id;
+  document.getElementById("name").value=c.name||"";
+  document.getElementById("phone").value=c.phone||"";
+  document.getElementById("whatsapp").value=c.whatsapp||"";
+  document.getElementById("address").value=c.address||"";
+  document.getElementById("balance").value=c.opening_balance||0;
+  document.getElementById("notes").value=c.notes||"";
+
+  document.getElementById("formTitle").textContent="Edit Customer";
+  document.getElementById("saveBtn").textContent="Update Customer";
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+async function deleteCustomer(id){
+  if(!confirm("Are you sure you want to delete this customer?"))return;
+
+  const {error}=await db.from("customers").delete().eq("id",id);
+
+  if(error){
+    message("Error: "+error.message);
+    return;
+  }
+
+  message("Customer deleted successfully.");
+  await loadCustomers();
+}
+
+function resetForm(){
+  document.getElementById("customerForm").reset();
+  document.getElementById("customerId").value="";
+  document.getElementById("balance").value="0";
+  document.getElementById("formTitle").textContent="Add New Customer";
+  document.getElementById("saveBtn").textContent="Save Customer";
+}
+</script>
+</body>
+</html>
