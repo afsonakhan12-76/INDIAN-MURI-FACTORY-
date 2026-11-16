@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoice & Billing - INDIAN MURI FACTORY</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:15px;background:#f1f5f9;font-family:Arial,sans-serif;color:#1e293b}
+header{background:#166534;color:white;padding:17px;border-radius:10px;margin-bottom:18px}
+.panel{background:white;padding:18px;border-radius:10px;margin-bottom:18px;box-shadow:0 2px 8px #0001}
+input,select,textarea{width:100%;padding:11px;margin:6px 0 12px;border:1px solid #cbd5e1;border-radius:7px;font-size:15px}
+button{border:0;border-radius:7px;padding:11px 15px;background:#15803d;color:white;font-size:14px;cursor:pointer;margin:3px}
+button:disabled{opacity:.5}
+.back{background:#475569}
+.blue{background:#2563eb}
+.orange{background:#ea580c}
+table{width:100%;border-collapse:collapse;min-width:700px}
+th,td{padding:10px;border:1px solid #e2e8f0;text-align:left}
+th{background:#dcfce7}
+.table-wrap{overflow-x:auto}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.total{text-align:right;line-height:2}
+.total strong{font-size:20px;color:#166534}
+#status{font-weight:bold;margin:10px 0}
+@media(max-width:600px){.grid{grid-template-columns:1fr}}
+@media print{
+  body{background:white;padding:0}
+  body>*:not(#printArea){display:none!important}
+  #printArea{display:block!important;color:#000;padding:20px}
+  #printArea table{min-width:0}
+  #printArea th{background:#eee!important}
+}
+#printArea{display:none}
+</style>
+</head>
+<body>
+
+<header>
+<h2>🏭 INDIAN MURI FACTORY</h2>
+<p>Invoice & Billing Management</p>
+<button class="back" onclick="location.href='index.html'">Dashboard</button>
+<button class="orange" onclick="logout()">Logout</button>
+</header>
+
+<div class="panel">
+<h3>Create New Invoice</h3>
+
+<div class="grid">
+<div>
+<label>Invoice Number</label>
+<input id="invoiceNo" readonly>
+</div>
+<div>
+<label>Invoice Date</label>
+<input id="invoiceDate" type="date">
+</div>
+</div>
+
+<label>Select Customer *</label>
+<select id="customer" required>
+<option value="">Loading customers...</option>
+</select>
+
+<div class="grid">
+<div>
+<label>Customer Mobile</label>
+<input id="customerPhone" readonly>
+</div>
+<div>
+<label>WhatsApp Number</label>
+<input id="customerWhatsApp" readonly>
+</div>
+</div>
+
+<hr>
+<h3>Bill Items</h3>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Product / Bag Type</th>
+<th>Quantity (Bags)</th>
+<th>Rate (₹)</th>
+<th>Amount (₹)</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="itemsBody"></tbody>
+</table>
+</div>
+
+<button type="button" onclick="addLine()">+ Add Another Item</button>
+
+<hr>
+
+<div class="grid">
+<div>
+<label>Discount (₹)</label>
+<input id="discount" type="number" min="0" step="0.01" value="0">
+</div>
+<div>
+<label>Other Charges (₹)</label>
+<input id="charges" type="number" min="0" step="0.01" value="0">
+</div>
+</div>
+
+<div class="total">
+<div>Total Bags: <b id="totalBags">0</b></div>
+<div>Total Weight: <b id="totalWeight">0.000 KG</b></div>
+<div>Subtotal: ₹<b id="subtotal">0.00</b></div>
+<div>Discount: ₹<b id="discountView">0.00</b></div>
+<div>Other Charges: ₹<b id="chargesView">0.00</b></div>
+<div><strong>Grand Total: ₹<span id="grandTotal">0.00</span></strong></div>
+</div>
+
+<hr>
+
+<div class="grid">
+<div>
+<label>Paid Amount (₹)</label>
+<input id="paid" type="number" min="0" step="0.01" value="0">
+</div>
+<div>
+<label>Payment Method</label>
+<select id="paymentMethod">
+<option>Cash</option>
+<option>UPI</option>
+<option>Bank Transfer</option>
+<option>Cheque</option>
+<option>Credit</option>
+</select>
+</div>
+</div>
+
+<label>Notes</label>
+<textarea id="notes" rows="2" placeholder="Optional notes"></textarea>
+
+<button id="saveBtn" onclick="saveInvoice()">Save Invoice</button>
+<div id="status"></div>
+</div>
+
+<div class="panel">
+<h3>Last Created Invoice</h3>
+<div id="lastInvoice">No invoice created yet.</div>
+<button id="printBtn" class="blue" style="display:none" onclick="window.print()">Print / Save PDF</button>
+<button id="whatsappBtn" style="display:none;background:#16a34a" onclick="sendWhatsApp()">Send Bill on WhatsApp</button>
+</div>
+
+<div id="printArea"></div>
+
+<script>
+const db=window.supabase.createClient(
+  window.SUPABASE_CONFIG.URL,
+  window.SUPABASE_CONFIG.KEY
+);
+
+let customers=[];
+let variants=[];
+let lastBill=null;
+
+document.body.style.display="none";
+
+function msg(text){
+  document.getElementById("status").textContent=text;
+}
+
+function today(){
+  const d=new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+
+function makeInvoiceNo(){
+  return "IMF-"+today().replaceAll("-","")+"-"+Date.now().toString().slice(-6);
+}
+
+async function checkLogin(){
+  const {data,error}=await db.auth.getSession();
+  if(error||!data.session){
+    location.replace("login.html");
+    return false;
+  }
+  document.body.style.display="block";
+  return true;
+}
+
+async function start(){
+  if(!await checkLogin())return;
+
+  document.getElementById("invoiceNo").value=makeInvoiceNo();
+  document.getElementById("invoiceDate").value=today();
+
+  await Promise.all([loadCustomers(),loadVariants()]);
+  addLine();
+}
+
+start();
+
+async function logout(){
+  await db.auth.signOut();
+  location.replace("login.html");
+}
+
+async function loadCustomers(){
+  const {data,error}=await db
+    .from("customers")
+    .select("id,name,phone,whatsapp,address")
+    .order("name");
+
+  if(error){msg("Customer Error: "+error.message);return;}
+
+  customers=data||[];
+  const sel=document.getElementById("customer");
+  sel.innerHTML='<option value="">Select Customer</option>';
+
+  customers.forEach(c=>{
+    sel.add(new Option(c.name,c.id));
+  });
+}
+
+async function loadVariants(){
+  const {data,error}=await db
+    .from("product_variants")
+    .select("id,variant_name,weight_kg,selling_price,bag_color,sku,products(name)")
+    .eq("active",true)
+    .order("variant_name");
+
+  if(error){msg("Product Error: "+error.message);return;}
+
+  variants=data||[];
+}
+
+document.getElementById("customer").addEventListener("change",()=>{
+  const c=customers.find(x=>x.id===document.getElementById("customer").value);
+  document.getElementById("customerPhone").value=c?.phone||"";
+  document.getElementById("customerWhatsApp").value=c?.whatsapp||"";
+});
+
+function addLine(){
+  const tr=document.createElement("tr");
+
+  const productCell=document.createElement("td");
+  const select=document.createElement("select");
+  select.style.minWidth="190px";
+  select.add(new Option("Select Bag Type",""));
+
+  variants.forEach(v=>{
+    const productName=v.products?.name||"Product";
+    const label=productName+" - "+v.variant_name+" ("+Number(v.weight_kg||0)+" KG)";
+    select.add(new Option(label,v.id));
+  });
+  productCell.appendChild(select);
+
+  const qtyCell=document.createElement("td");
+  const qty=document.createElement("input");
+  qty.type="number";qty.min="1";qty.step="1";qty.value="1";
+  qty.style.width="90px";
+  qtyCell.appendChild(qty);
+
+  const rateCell=document.createElement("td");
+  const rate=document.createElement("input");
+  rate.type="number";rate.min="0";rate.step="0.01";rate.value="0";
+  rate.style.width="110px";
+  rateCell.appendChild(rate);
+
+  const amountCell=document.createElement("td");
+  amountCell.textContent="₹0.00";
+
+  const actionCell=document.createElement("td");
+  const remove=document.createElement("button");
+  remove.type="button";remove.textContent="Remove";
+  remove.style.background="#dc2626";
+  remove.onclick=()=>{tr.remove();calculate();};
+  actionCell.appendChild(remove);
+
+  tr.append(productCell,qtyCell,rateCell,amountCell,actionCell);
+  document.getElementById("itemsBody").appendChild(tr);
+
+  select.onchange=()=>{
+    const v=variants.find(x=>x.id===select.value);
+    rate.value=v?Number(v.selling_price||0):0;
+    calculate();
+  };
+
+  qty.oninput=calculate;
+  rate.oninput=calculate;
+  calculate();
+}
+
+function getBill(){
+  const rows=[...document.querySelectorAll("#itemsBody tr")];
+  let subtotal=0,bags=0,weight=0;
+  const items=[];
+
+  rows.forEach(tr=>{
+    const select=tr.querySelector("select");
+    const inputs=tr.querySelectorAll("input");
+    const variant=variants.find(v=>v.id===select.value);
+    const quantity=Number(inputs[0].value||0);
+    const unitPrice=Number(inputs[1].value||0);
+
+    const lineTotal=quantity*unitPrice;
+
+    if(variant&&quantity>0&&Number.isInteger(quantity)&&unitPrice>=0){
+      items.push({
+        variant_id:variant.id,
+        quantity:quantity,
+        unit_price:unitPrice,
+        total:lineTotal,
+        variant:variant
+      });
+      subtotal+=lineTotal;
+      bags+=quantity;
+      weight+=quantity*Number(variant.weight_kg||0);
+    }
+
+    tr.children[3].textContent="₹"+lineTotal.toFixed(2);
+  });
+
+  const discount=Number(document.getElementById("discount").value||0);
+  const charges=Number(document.getElementById("charges").value||0);
+  const total=Math.max(0,subtotal-discount+charges);
+
+  return {items,subtotal,discount,charges,total,bags,weight};
+}
+
+function calculate(){
+  const b=getBill();
+  document.getElementById("totalBags").textContent=b.bags;
+  document.getElementById("totalWeight").textContent=b.weight.toFixed(3)+" KG";
+  document.getElementById("subtotal").textContent=b.subtotal.toFixed(2);
+  document.getElementById("discountView").textContent=b.discount.toFixed(2);
+  document.getElementById("chargesView").textContent=b.charges.toFixed(2);
+  document.getElementById("grandTotal").textContent=b.total.toFixed(2);
+}
+
+document.getElementById("discount").addEventListener("input",calculate);
+document.getElementById("charges").addEventListener("input",calculate);
+
+document.getElementById("paid").addEventListener("input",()=>{});
+
+function esc(value){
+  return String(value??"").replace(/[&<>"']/g,ch=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[ch]));
+}
+
+async function saveInvoice(){
+  const customer=customers.find(c=>c.id===document.getElementById("customer").value);
+  const b=getBill();
+  const paid=Number(document.getElementById("paid").value||0);
+
+  if(!customer){msg("Please select a customer.");return;}
+  if(!b.items.length){msg("Please add at least one valid bag item.");return;}
+  if(b.items.length!==document.querySelectorAll("#itemsBody tr").length){
+    msg("Please select a bag type and valid quantity in every row, or remove empty rows.");
+    return;
+  }
+  if(b.discount<0||b.charges<0||paid<0||paid>b.total){
+    msg("Please check discount, charges and paid amount.");
+    return;
+  }
+
+  const btn=document.getElementById("saveBtn");
+  btn.disabled=true;
+  msg("Saving invoice...");
+
+  const invoiceNo=document.getElementById("invoiceNo").value;
+  const invoiceDate=document.getElementById("invoiceDate").value;
+
+  const invoice={
+    invoice_number:invoiceNo,
+    customer_id:customer.id,
+    invoice_date:invoiceDate,
+    subtotal:b.subtotal,
+    discount:b.discount,
+    other_charges:b.charges,
+    total_amount:b.total,
+    paid_amount:paid,
+    payment_method:document.getElementById("paymentMethod").value,
+    status:paid>=b.total?"Paid":paid>0?"Partial":"Unpaid",
+    notes:document.getElementById("notes").value.trim()
+  };
+
+  const {data:created,error}=await db
+    .from("sales_invoices")
+    .insert(invoice)
+    .select()
+    .single();
+
+  if(error){
+    btn.disabled=false;
+    msg("Invoice Error: "+error.message);
+    return;
+  }
+
+  const saleItems=b.items.map(item=>({
+    invoice_id:created.id,
+    variant_id:item.variant_id,
+    quantity:item.quantity,
+    unit_price:item.unit_price,
+    total:item.total
+  }));
+
+  const {error:itemError}=await db.from("sales_items").insert(saleItems);
+
+  if(itemError){
+    await db.from("sales_invoices").delete().eq("id",created.id);
+    btn.disabled=false;
+    msg("Item Error: "+itemError.message);
+    return;
+  }
+
+  lastBill={
+    invoice:created,
+    customer:customer,
+    items:b.items,
+    paid:paid,
+    due:b.total-paid,
+    bags:b.bags,
+    weight:b.weight
+  };
+
+  showBill();
+  document.getElementById("printBtn").style.display="inline-block";
+  document.getElementById("whatsappBtn").style.display="inline-block";
+  document.getElementById("lastInvoice").textContent=
+    "Invoice "+invoiceNo+" saved successfully.";
+
+  msg("Invoice saved successfully! Stock will update through the sales item trigger.");
+
+  btn.disabled=false;
+  document.getElementById("invoiceNo").value=makeInvoiceNo();
+  document.getElementById("paid").value="0";
+  document.getElementById("notes").value="";
+}
+
+function showBill(){
+  const x=lastBill;
+  const i=x.invoice;
+  const c=x.customer;
+
+  let rows="";
+  x.items.forEach(item=>{
+    const v=item.variant;
+    rows+=`<tr>
+      <td>${esc(v.products?.name||"Product")} - ${esc(v.variant_name)}</td>
+      <td>${Number(v.weight_kg||0)} KG</td>
+      <td>${item.quantity}</td>
+      <td>₹${item.unit_price.toFixed(2)}</td>
+      <td>₹${item.total.toFixed(2)}</td>
+    </tr>`;
+  });
+
+  document.getElementById("printArea").innerHTML=`
+    <div style="font-family:Arial,sans-serif">
+      <h1 style="text-align:center">INDIAN MURI FACTORY</h1>
+      <h3 style="text-align:center">SALES INVOICE</h3>
+      <hr>
+      <p><b>Invoice No:</b> ${esc(i.invoice_number)}
+      <br><b>Date:</b> ${esc(i.invoice_date)}</p>
+      <p><b>Customer:</b> ${esc(c.name)}
+      <br><b>Phone:</b> ${esc(c.phone)}
+      <br><b>Address:</b> ${esc(c.address)}</p>
+      <table style="width:100%;border-collapse:collapse" border="1" cellpadding="8">
+        <thead><tr><th>Item</th><th>Bag Weight</th><th>Bags</th><th>Rate</th><th>Amount</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="text-align:right;line-height:1.8">
+        Total Bags: ${x.bags}<br>
+        Total Weight: ${x.weight.toFixed(3)} KG<br>
+        Subtotal: ₹${Number(i.subtotal).toFixed(2)}<br>
+        Discount: ₹${Number(i.discount).toFixed(2)}<br>
+        Other Charges: ₹${Number(i.other_charges).toFixed(2)}<br>
+        <b>Grand Total: ₹${Number(i.total_amount).toFixed(2)}</b><br>
+        Paid: ₹${x.paid.toFixed(2)}<br>
+        <b>Due: ₹${x.due.toFixed(2)}</b><br>
+        Payment: ${esc(i.payment_method)} (${esc(i.status)})
+      </p>
+      <p>Notes: ${esc(i.notes||"")}</p>
+      <hr>
+      <p style="text-align:center">Thank you for your business!</p>
+    </div>`;
+}
+
+function sendWhatsApp(){
+  if(!lastBill)return;
+
+  const x=lastBill;
+  const number=(x.customer.whatsapp||x.customer.phone||"").replace(/\D/g,"");
+
+  if(!number){
+    alert("Customer WhatsApp or phone number is missing.");
+    return;
+  }
+
+  const text=
+`INDIAN MURI FACTORY
+Invoice: ${x.invoice.invoice_number}
+Date: ${x.invoice.invoice_date}
+Customer: ${x.customer.name}
+Total Bags: ${x.bags}
+Total Weight: ${x.weight.toFixed(3)} KG
+Grand Total: ₹${Number(x.invoice.total_amount).toFixed(2)}
+Paid: ₹${x.paid.toFixed(2)}
+Due: ₹${x.due.toFixed(2)}
+Thank you for your business.`;
+
+  window.open("https://wa.me/"+number+"?text="+encodeURIComponent(text),"_blank");
+}
+</script>
+</body>
+</html>
