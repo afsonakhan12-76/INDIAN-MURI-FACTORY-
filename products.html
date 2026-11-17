@@ -1,17 +1,20 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Product Management</title>
+<title>Product Management | INDIAN MURI FACTORY</title>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+
 <style>
 *{box-sizing:border-box}
 body{margin:0;padding:15px;background:#f1f5f9;font-family:Arial;color:#1e293b}
 header{background:#166534;color:white;padding:17px;border-radius:10px;margin-bottom:18px}
 .panel{background:white;padding:18px;border-radius:10px;margin-bottom:18px;box-shadow:0 2px 8px #0001}
-input,select{width:100%;padding:12px;margin:7px 0 13px;border:1px solid #cbd5e1;border-radius:7px;font-size:15px}
+input,select,textarea{width:100%;padding:12px;margin:7px 0 13px;border:1px solid #cbd5e1;border-radius:7px;font-size:15px}
 button{border:0;border-radius:7px;padding:11px 16px;background:#15803d;color:white;cursor:pointer;margin:3px}
 .back{background:#475569}
 table{width:100%;border-collapse:collapse;min-width:650px}
@@ -19,10 +22,11 @@ th,td{padding:11px;border:1px solid #e2e8f0;text-align:left}
 th{background:#dcfce7}
 .table-wrap{overflow-x:auto}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-#status{font-weight:bold;margin:12px 0}
+#status{font-weight:bold;margin:12px 0;overflow-wrap:anywhere}
 @media(max-width:600px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
+
 <body>
 
 <header>
@@ -32,29 +36,41 @@ th{background:#dcfce7}
 <button style="background:#dc2626" onclick="logout()">Logout</button>
 </header>
 
+<!-- ADD PRODUCT -->
 <div class="panel">
 <h3>Add New Product</h3>
 
-<h3>Add New Product</h3>
+<form id="productForm">
 
-<label>Product Name</label>
-<input
-  type="text"
-  id="productName"
-  placeholder="Enter product name"
->
+<label>Product Name *</label>
+<input type="text" id="productName" required placeholder="Enter product name">
 
+<div class="grid">
+<div>
+<label>Category</label>
+<input type="text" id="category" placeholder="Example: Muri">
+</div>
+
+<div>
 <label>Color Type</label>
 <select id="colorType">
-  <option value="White">White</option>
-  <option value="Colored">Colored</option>
+<option value="White">White</option>
+<option value="Colored">Colored</option>
 </select>
+</div>
+</div>
 
-<button onclick="addProduct()">Save Product</button>
+<label>Description</label>
+<textarea id="description" rows="3" placeholder="Product details"></textarea>
 
+<button type="submit">Save Product</button>
+</form>
+</div>
 
+<!-- ADD BAG VARIANT -->
 <div class="panel">
 <h3>Add Bag Weight & Selling Price</h3>
+
 <form id="variantForm">
 
 <label>Select Product *</label>
@@ -70,6 +86,7 @@ th{background:#dcfce7}
 <label>Bag Weight (KG) *</label>
 <input id="weight" type="number" min="0.001" step="0.001" required placeholder="5">
 </div>
+
 <div>
 <label>Bag Color</label>
 <input id="bagColor" placeholder="Example: White">
@@ -81,6 +98,7 @@ th{background:#dcfce7}
 <label>Selling Price (₹) *</label>
 <input id="price" type="number" min="0" step="0.01" required placeholder="250">
 </div>
+
 <div>
 <label>SKU / Product Code</label>
 <input id="sku" placeholder="Example: WM-5KG">
@@ -91,26 +109,37 @@ th{background:#dcfce7}
 </form>
 </div>
 
+<!-- PRODUCT LIST -->
 <div class="panel">
 <h3>Product List</h3>
 <div class="table-wrap">
 <table>
 <thead>
-<tr><th>Product</th><th>Category</th><th>Color</th><th>Status</th></tr>
+<tr>
+<th>Product</th>
+<th>Category</th>
+<th>Color</th>
+<th>Status</th>
+</tr>
 </thead>
 <tbody id="productRows"></tbody>
 </table>
 </div>
 </div>
 
+<!-- VARIANT LIST -->
 <div class="panel">
 <h3>Bag Weight & Price List</h3>
 <div class="table-wrap">
 <table>
 <thead>
 <tr>
-<th>Product</th><th>Bag Name</th><th>Weight</th>
-<th>Color</th><th>Selling Price</th><th>SKU</th>
+<th>Product</th>
+<th>Bag Name</th>
+<th>Weight</th>
+<th>Color</th>
+<th>Selling Price</th>
+<th>SKU</th>
 </tr>
 </thead>
 <tbody id="variantRows"></tbody>
@@ -121,23 +150,25 @@ th{background:#dcfce7}
 <div id="status"></div>
 
 <script>
-const db=window.supabase.createClient(
+const db = window.supabase.createClient(
   window.SUPABASE_CONFIG.URL,
   window.SUPABASE_CONFIG.KEY
 );
 
-let products=[];
-let variants=[];
+let products = [];
+let variants = [];
 
-document.body.style.display="none";
+document.body.style.display = "none";
 
 async function checkLogin(){
-  const {data,error}=await db.auth.getSession();
-  if(error||!data.session){
+  const {data,error} = await db.auth.getSession();
+
+  if(error || !data.session){
     location.replace("login.html");
     return false;
   }
-  document.body.style.display="block";
+
+  document.body.style.display = "block";
   return true;
 }
 
@@ -146,6 +177,7 @@ async function start(){
     await loadAll();
   }
 }
+
 start();
 
 async function logout(){
@@ -154,117 +186,166 @@ async function logout(){
 }
 
 function message(text){
-  document.getElementById("status").textContent=text;
+  document.getElementById("status").textContent = text;
 }
 
+// LOAD PRODUCTS AND VARIANTS
 async function loadAll(){
-  const [p,v]=await Promise.all([
+
+  const [p,v] = await Promise.all([
+
     db.from("products")
       .select("id,name,category,color_type,active")
       .order("name"),
+
     db.from("product_variants")
       .select("id,product_id,variant_name,weight_kg,bag_color,selling_price,sku,active")
       .order("weight_kg")
+
   ]);
 
-  if(p.error){message("Product Error: "+p.error.message);return;}
-  if(v.error){message("Variant Error: "+v.error.message);return;}
+  if(p.error){
+    message("Product Error: " + p.error.message);
+    return;
+  }
 
-  products=p.data||[];
-  variants=v.data||[];
+  if(v.error){
+    message("Variant Error: " + v.error.message);
+    return;
+  }
+
+  products = p.data || [];
+  variants = v.data || [];
 
   renderProducts();
   renderVariants();
   updateProductSelect();
-  message("Products: "+products.length+" | Bag Variants: "+variants.length);
+
+  message("Products: " + products.length +
+          " | Bag Variants: " + variants.length);
 }
 
+// PRODUCT DROPDOWN
 function updateProductSelect(){
-  const select=document.getElementById("productSelect");
-  select.innerHTML='<option value="">Select Product</option>';
 
-  products.filter(p=>p.active).forEach(p=>{
+  const select = document.getElementById("productSelect");
+
+  select.innerHTML = '<option value="">Select Product</option>';
+
+  products.filter(p => p.active !== false).forEach(p => {
     select.add(new Option(p.name,p.id));
   });
 }
 
+// SHOW PRODUCT LIST
 function renderProducts(){
-  const tbody=document.getElementById("productRows");
-  tbody.innerHTML="";
 
-  products.forEach(p=>{
-    const tr=document.createElement("tr");
+  const tbody = document.getElementById("productRows");
+  tbody.innerHTML = "";
 
-    [p.name,p.category,p.color_type,p.active?"Active":"Inactive"]
-    .forEach(value=>{
-      const td=document.createElement("td");
-      td.textContent=value||"-";
-      tr.appendChild(td);
-    });
+  products.forEach(p => {
 
-    tbody.appendChild(tr);
-  });
-}
-
-function renderVariants(){
-  const tbody=document.getElementById("variantRows");
-  tbody.innerHTML="";
-
-  variants.forEach(v=>{
-    const p=products.find(x=>x.id===v.product_id);
-    const tr=document.createElement("tr");
+    const tr = document.createElement("tr");
 
     [
-      p?.name||"Unknown",
-      v.variant_name,
-      Number(v.weight_kg).toFixed(3)+" KG",
-      v.bag_color,
-      "₹"+Number(v.selling_price).toFixed(2),
-      v.sku
-    ].forEach(value=>{
-      const td=document.createElement("td");
-      td.textContent=value||"-";
+      p.name,
+      p.category,
+      p.color_type,
+      p.active ? "Active" : "Inactive"
+    ].forEach(value => {
+
+      const td = document.createElement("td");
+      td.textContent = value || "-";
       tr.appendChild(td);
+
     });
 
     tbody.appendChild(tr);
   });
 }
 
-document.getElementById("productForm").addEventListener("submit",async e=>{
+// SHOW VARIANT LIST
+function renderVariants(){
+
+  const tbody = document.getElementById("variantRows");
+  tbody.innerHTML = "";
+
+  variants.forEach(v => {
+
+    const p = products.find(x => x.id === v.product_id);
+    const tr = document.createElement("tr");
+
+    [
+      p?.name || "Unknown",
+      v.variant_name,
+      Number(v.weight_kg).toFixed(3) + " KG",
+      v.bag_color,
+      "₹" + Number(v.selling_price).toFixed(2),
+      v.sku
+    ].forEach(value => {
+
+      const td = document.createElement("td");
+      td.textContent = value || "-";
+      tr.appendChild(td);
+
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+// ADD PRODUCT
+document.getElementById("productForm")
+.addEventListener("submit", async function(e){
+
   e.preventDefault();
 
-  const product={
-    name:document.getElementById("productName").value.trim(),
-    category:document.getElementById("category").value.trim(),
-    color_type:document.getElementById("colorType").value.trim(),
-    description:document.getElementById("description").value.trim(),
-    active:true
+  const product = {
+    name: document.getElementById("productName").value.trim(),
+    category: document.getElementById("category").value.trim(),
+    color_type: document.getElementById("colorType").value,
+    description: document.getElementById("description").value.trim(),
+    active: true
   };
 
-  const {error}=await db.from("products").insert(product);
+  if(!product.name){
+    message("Please enter product name.");
+    return;
+  }
+
+  message("Saving product...");
+
+  const {data,error} = await db
+    .from("products")
+    .insert(product)
+    .select();
 
   if(error){
-    message("Error: "+error.message);
+    message("Product Save Error: " + error.message);
     return;
   }
 
   document.getElementById("productForm").reset();
+
   message("Product added successfully!");
+
   await loadAll();
 });
 
-document.getElementById("variantForm").addEventListener("submit",async e=>{
+// ADD BAG VARIANT
+document.getElementById("variantForm")
+.addEventListener("submit", async function(e){
+
   e.preventDefault();
 
-  const variant={
-    product_id:document.getElementById("productSelect").value,
-    variant_name:document.getElementById("variantName").value.trim(),
-    weight_kg:Number(document.getElementById("weight").value),
-    bag_color:document.getElementById("bagColor").value.trim(),
-    selling_price:Number(document.getElementById("price").value),
-    sku:document.getElementById("sku").value.trim(),
-    active:true
+  const variant = {
+    product_id: document.getElementById("productSelect").value,
+    variant_name: document.getElementById("variantName").value.trim(),
+    weight_kg: Number(document.getElementById("weight").value),
+    bag_color: document.getElementById("bagColor").value.trim(),
+    selling_price: Number(document.getElementById("price").value),
+    sku: document.getElementById("sku").value.trim(),
+    active: true
   };
 
   if(!variant.product_id){
@@ -272,17 +353,30 @@ document.getElementById("variantForm").addEventListener("submit",async e=>{
     return;
   }
 
-  const {error}=await db.from("product_variants").insert(variant);
+  if(!variant.variant_name || variant.weight_kg <= 0 ||
+     !Number.isFinite(variant.selling_price) || variant.selling_price < 0){
+    message("Please enter valid variant details.");
+    return;
+  }
+
+  message("Saving bag variant...");
+
+  const {error} = await db
+    .from("product_variants")
+    .insert(variant);
 
   if(error){
-    message("Error: "+error.message);
+    message("Variant Save Error: " + error.message);
     return;
   }
 
   document.getElementById("variantForm").reset();
+
   message("Bag variant and selling price saved successfully!");
+
   await loadAll();
 });
 </script>
+
 </body>
 </html>
