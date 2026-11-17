@@ -5,7 +5,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Admin Login | INDIAN MURI FACTORY</title>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 
@@ -18,71 +17,136 @@ min-height:100vh;
 display:flex;
 align-items:center;
 justify-content:center;
-background:#edf5ef;
+padding:20px;
 font-family:Arial,sans-serif;
-padding:18px
+background:linear-gradient(135deg,#075985,#16a34a,#7c3aed,#ea580c);
+background-size:300% 300%;
+animation:bgMove 12s ease infinite;
+}
+
+@keyframes bgMove{
+0%{background-position:0% 50%}
+50%{background-position:100% 50%}
+100%{background-position:0% 50%}
 }
 
 .login{
-background:white;
 width:100%;
-max-width:390px;
-padding:30px;
-border-radius:14px;
-box-shadow:0 8px 30px #0001
+max-width:400px;
+padding:32px;
+border-radius:22px;
+background:rgba(255,255,255,.94);
+box-shadow:0 20px 55px #0003;
+border:1px solid #ffffffaa;
 }
 
-h2{text-align:center;color:#166534}
-p{text-align:center;color:#64748b}
+.logo{
+width:76px;
+height:76px;
+margin:0 auto 15px;
+display:flex;
+align-items:center;
+justify-content:center;
+border-radius:22px;
+font-size:40px;
+background:linear-gradient(135deg,#16a34a,#0ea5e9);
+box-shadow:0 8px 20px #16a34a55;
+}
+
+h2{
+text-align:center;
+color:#166534;
+font-size:23px;
+margin:10px 0;
+}
+
+.subtitle{
+text-align:center;
+color:#64748b;
+margin-bottom:25px;
+font-size:14px;
+}
 
 label{
 display:block;
-margin:18px 0 7px
+margin:17px 0 8px;
+font-weight:bold;
+color:#334155;
+font-size:14px;
 }
 
 input{
 width:100%;
-padding:13px;
-border:1px solid #cbd5e1;
-border-radius:7px;
-font-size:15px
+padding:14px;
+border:2px solid #e2e8f0;
+border-radius:10px;
+font-size:15px;
+outline:none;
+transition:.25s;
+}
+
+input:focus{
+border-color:#0ea5e9;
+box-shadow:0 0 0 3px #0ea5e922;
 }
 
 button{
 width:100%;
 padding:14px;
 margin-top:22px;
-background:#15803d;
-color:white;
 border:0;
-border-radius:7px;
+border-radius:10px;
+color:white;
 font-size:16px;
-cursor:pointer
+font-weight:bold;
+cursor:pointer;
+background:linear-gradient(100deg,#16a34a,#0891b2,#7c3aed);
+background-size:200% 200%;
+transition:.3s;
 }
 
-button:disabled{opacity:.6}
+button:hover{
+background-position:100% 0;
+transform:translateY(-2px);
+box-shadow:0 8px 18px #0891b244;
+}
+
+button:disabled{
+opacity:.6;
+cursor:not-allowed;
+transform:none;
+}
 
 .forgot{
 display:block;
-text-align:right;
-margin-top:15px;
-color:#15803d;
+text-align:center;
+margin-top:19px;
+color:#2563eb;
 font-size:14px;
+font-weight:bold;
 text-decoration:none;
-cursor:pointer
+cursor:pointer;
 }
 
 .forgot:hover{text-decoration:underline}
 
 #message{
-color:#dc2626;
 text-align:center;
 font-size:14px;
-margin-top:15px;
-overflow-wrap:anywhere
+margin-top:16px;
+overflow-wrap:anywhere;
+color:#dc2626;
 }
 
 .success{color:#15803d!important}
+
+.footer{
+text-align:center;
+font-size:12px;
+color:#94a3b8;
+margin-top:25px;
+}
+
 </style>
 </head>
 
@@ -90,26 +154,34 @@ overflow-wrap:anywhere
 
 <div class="login">
 
-<h2>🏭 INDIAN MURI FACTORY</h2>
-<p>Administrator Login</p>
+<div class="logo">🏭</div>
+
+<h2>INDIAN MURI FACTORY</h2>
+<p class="subtitle">Factory Management System</p>
 
 <form id="loginForm">
 
 <label>Email Address</label>
 <input type="email" id="email"
-required autocomplete="username">
+required autocomplete="username"
+placeholder="Enter admin email">
 
 <label>Password</label>
 <input type="password" id="password"
-required autocomplete="current-password">
+required autocomplete="current-password"
+placeholder="Enter password">
 
-<button id="loginBtn" type="submit">Login</button>
+<button id="loginBtn" type="submit">Login to Dashboard</button>
 
 </form>
 
 <a class="forgot" id="forgotBtn">Forgot Password?</a>
 
 <p id="message"></p>
+
+<div class="footer">
+Secure Administrator Access
+</div>
 
 </div>
 
@@ -127,7 +199,7 @@ const db = window.supabase.createClient(
  config.KEY
 );
 
-// Normal Login
+// Login
 document.getElementById("loginForm")
 .addEventListener("submit",async(e)=>{
 
@@ -148,9 +220,7 @@ document.getElementById("loginForm")
   });
 
   if(error) throw error;
-
-  if(!data.session)
-   throw new Error("Login session not created");
+  if(!data.session) throw new Error("Login session not created");
 
   location.href="index.html";
 
@@ -158,7 +228,7 @@ document.getElementById("loginForm")
   msg.textContent=error.message;
  }finally{
   btn.disabled=false;
-  btn.textContent="Login";
+  btn.textContent="Login to Dashboard";
  }
 });
 
@@ -183,8 +253,7 @@ document.getElementById("forgotBtn")
  btn.textContent="Sending...";
 
  try{
-
-  const resetURL = new URL("reset-password.html", location.href).href;
+  const resetURL = new URL("reset-password.html",location.href).href;
 
   const {error}=await db.auth.resetPasswordForEmail(email,{
    redirectTo:resetURL
