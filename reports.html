@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reports & Excel Export - INDIAN MURI FACTORY</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;padding:15px;background:#f1f5f9;
+ font-family:Arial,sans-serif;color:#1e293b
+}
+header{
+ background:#166534;color:white;padding:20px;
+ border-radius:12px;margin-bottom:20px
+}
+.panel{
+ background:white;padding:18px;border-radius:12px;
+ margin-bottom:18px;box-shadow:0 2px 8px #0001
+}
+button{
+ padding:12px 18px;border:0;border-radius:8px;
+ background:#15803d;color:white;font-size:15px;
+ cursor:pointer;margin:4px
+}
+button:disabled{opacity:.5;cursor:not-allowed}
+.back{background:#475569}
+#status{margin-top:15px;font-weight:bold;white-space:pre-wrap}
+.progress{
+ width:100%;height:12px;background:#e2e8f0;
+ border-radius:20px;overflow:hidden;margin-top:12px
+}
+#progressBar{
+ height:100%;width:0;background:#16a34a;transition:.2s
+}
+.grid{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:10px
+}
+.item{
+ padding:13px;border:1px solid #e2e8f0;
+ border-radius:8px;background:#f8fafc
+}
+.item strong{display:block;font-size:14px}
+.item span{font-size:12px;color:#64748b}
+.small{font-size:13px;color:#64748b}
+@media(min-width:700px){
+ .grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h2>🏭 INDIAN MURI FACTORY</h2>
+<p>Reports & Excel Export System</p>
+<button class="back" onclick="location.href='index.html'">
+Back to Dashboard
+</button>
+<button style="background:#dc2626" onclick="logout()">
+Logout
+</button>
+</header>
+
+<div class="panel">
+<h3>📊 Factory Data Export</h3>
+<p>Download all factory records in one Excel workbook.</p>
+
+<button id="exportBtn" onclick="exportExcel()">
+⬇ Download Complete Excel Report
+</button>
+
+<div class="progress">
+<div id="progressBar"></div>
+</div>
+
+<div id="status">Checking login...</div>
+</div>
+
+<div class="panel">
+<h3>Included Excel Sheets</h3>
+<div class="grid" id="sheetList"></div>
+</div>
+
+<div class="panel">
+<h3>Important Information</h3>
+<p class="small">
+The Excel workbook contains separate sheets for all 21 database
+tables. Related records are exported using their original IDs.
+All data is downloaded directly from Supabase.
+</p>
+<p class="small">
+Only records accessible to your logged-in account through
+Supabase Row Level Security (RLS) can be exported.
+</p>
+</div>
+
+<script>
+const db=window.supabase.createClient(
+ window.SUPABASE_CONFIG.URL,
+ window.SUPABASE_CONFIG.KEY
+);
+
+const TABLES=[
+ {name:"cash_transactions",order:"id"},
+ {name:"customer_payments",order:"id"},
+ {name:"customers",order:"id"},
+ {name:"expenses",order:"id"},
+ {name:"factory_settings",order:"id"},
+ {name:"inventory_items",order:"id"},
+ {name:"product_variants",order:"id"},
+ {name:"production_batches",order:"id"},
+ {name:"production_inputs",order:"id"},
+ {name:"production_outputs",order:"id"},
+ {name:"products",order:"id"},
+ {name:"purchase_items",order:"id"},
+ {name:"purchases",order:"id"},
+ {name:"sales_invoices",order:"id"},
+ {name:"sales_items",order:"id"},
+ {name:"stock_balances",order:"item_type"},
+ {name:"stock_transactions",order:"id"},
+ {name:"supplier_payments",order:"id"},
+ {name:"suppliers",order:"id"},
+ {name:"worker_attendance",order:"id"},
+ {name:"worker_payments",order:"id"},
+ {name:"workers",order:"id"}
+];
+
+let loggedIn=false;
+
+async function checkLogin(){
+ try{
+  const {data,error}=await db.auth.getSession();
+
+  if(error || !data.session){
+   location.replace("login.html");
+   return;
+  }
+
+  loggedIn=true;
+  document.getElementById("status").textContent=
+   "✅ Login successful. Ready to export.";
+ }catch(e){
+  document.getElementById("status").textContent=
+   "Login error: "+e.message;
+ }
+}
+
+async function logout(){
+ await db.auth.signOut();
+ location.replace("login.html");
+}
+
+function showTables(){
+ const box=document.getElementById("sheetList");
+
+ TABLES.forEach((t,i)=>{
+  const div=document.createElement("div");
+  div.className="item";
+
+  const strong=document.createElement("strong");
+  strong.textContent=(i+1)+". "+t.name;
+
+  const span=document.createElement("span");
+  span.textContent="Excel Worksheet";
+
+  div.append(strong,span);
+  box.appendChild(div);
+ });
+}
+
+function updateProgress(current,total,name){
+ const percent=Math.round(current/total*100);
+
+ document.getElementById("progressBar").style.width=
+  percent+"%";
+
+ document.getElementById("status").textContent=
+  "Exporting: "+name+"\n"+
+  "Completed: "+current+" / "+total+" tables ("+
+  percent+"%)";
+}
+
+// Download all rows in pages
+async function fetchAllRows(table,order){
+ const batchSize=1000;
+ let allRows=[];
+ let offset=0;
+
+ while(true){
+  let query=db.from(table).select("*");
+
+  if(table==="stock_balances"){
+   query=query.order("item_type",{ascending:true})
+             .order("item_id",{ascending:true});
+  }else{
+   query=query.order(order,{ascending:true});
+  }
+
+  const {data,error}=await query.range(
+   offset,offset+batchSize-1
+  );
+
+  if(error){
+   throw new Error(table+": "+error.message);
+  }
+
+  if(data && data.length){
+   allRows=allRows.concat(data);
+   offset+=data.length;
+  }
+
+  if(!data || data.length<batchSize)break;
+ }
+
+ return allRows;
+}
+
+async function exportExcel(){
+
+ if(!loggedIn){
+  alert("Please login first.");
+  return;
+ }
+
+ if(typeof XLSX==="undefined"){
+  alert("Excel library failed to load. Check internet connection.");
+  return;
+ }
+
+ const btn=document.getElementById("exportBtn");
+ btn.disabled=true;
+
+ try{
+  const workbook=XLSX.utils.book_new();
+
+  const summary=[
+   ["INDIAN MURI FACTORY"],
+   ["Complete Factory Data Export"],
+   ["Export Date",new Date().toLocaleString("en-IN")],
+   ["Total Database Tables",TABLES.length],
+   [],
+   ["Table Name","Total Records"]
+  ];
+
+  let totalRecords=0;
+  const errors=[];
+
+  for(let i=0;i<TABLES.length;i++){
+
+   const table=TABLES[i];
+
+   updateProgress(i,TABLES.length,table.name);
+
+   const rows=await fetchAllRows(
+    table.name,table.order
+   );
+
+   totalRecords+=rows.length;
+
+   let worksheet;
+
+   if(rows.length){
+    worksheet=XLSX.utils.json_to_sheet(rows);
+   }else{
+    worksheet=XLSX.utils.aoa_to_sheet([
+     ["No records found"]
+    ]);
+   }
+
+   XLSX.utils.book_append_sheet(
+    workbook,worksheet,table.name
+   );
+
+   summary.push([table.name,rows.length]);
+
+   updateProgress(i+1,TABLES.length,table.name);
+  }
+
+  summary.push([]);
+  summary.push(["TOTAL RECORDS",totalRecords]);
+
+  const summarySheet=XLSX.utils.aoa_to_sheet(summary);
+
+  XLSX.utils.book_append_sheet(
+   workbook,summarySheet,"Export Summary",true
+  );
+
+  const filename="Indian_Muri_Factory_Report_"+
+   new Date().toISOString().slice(0,10)+".xlsx";
+
+  XLSX.writeFile(workbook,filename);
+
+  document.getElementById("status").textContent=
+   "✅ Excel Download Completed!\n"+
+   "Total Tables: "+TABLES.length+
+   "\nTotal Records: "+totalRecords+
+   "\nFile: "+filename;
+
+  document.getElementById("progressBar").style.width="100%";
+
+ }catch(e){
+  document.getElementById("status").textContent=
+   "❌ Export Failed:\n"+e.message+
+   "\nPlease check Supabase table permissions and internet.";
+ }finally{
+  btn.disabled=false;
+ }
+}
+
+showTables();
+checkLogin();
+</script>
+
+</body>
+</html>
