@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Purchase Management | Indian Muri Factory</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f0fdf4;font-family:Arial,sans-serif;color:#1e293b}
+header{background:linear-gradient(110deg,#047857,#0ea5e9,#7c3aed);color:white;padding:20px}
+header h2{margin:0}
+header p{margin:7px 0 0}
+.container{max-width:1100px;margin:20px auto;padding:12px}
+.panel{background:white;padding:20px;border-radius:15px;margin-bottom:20px;box-shadow:0 5px 20px #0001}
+h3{color:#047857;margin-top:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+label{display:block;font-size:13px;font-weight:bold;margin:10px 0 6px}
+input,select{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;background:white}
+button{border:0;border-radius:8px;padding:12px 16px;background:#059669;color:white;font-weight:bold;cursor:pointer;margin-top:12px}
+button:hover{filter:brightness(.94)}
+.remove{background:#dc2626;padding:8px 12px}
+.blue{background:#2563eb}
+.gray{background:#475569}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th,td{padding:11px;border-bottom:1px solid #e2e8f0;text-align:left}
+th{background:#ecfdf5;color:#047857}
+.total{text-align:right;font-size:17px;line-height:2}
+.total strong{color:#047857}
+.message{margin-top:12px;font-weight:bold;overflow-wrap:anywhere}
+@media(max-width:600px){.panel{padding:14px}.container{padding:8px}}
+</style>
+</head>
+<body>
+
+<header>
+<h2>🏭 INDIAN MURI FACTORY</h2>
+<p>Purchase Management System</p>
+</header>
+
+<div class="container">
+
+<div class="panel">
+<button class="gray" onclick="location.href='index.html'">← Dashboard</button>
+<h3>New Purchase Entry</h3>
+
+<div class="grid">
+<div>
+<label>Supplier</label>
+<select id="supplier">
+<option value="">Select Supplier</option>
+</select>
+</div>
+<div>
+<label>Bill Number</label>
+<input id="bill" placeholder="Enter Bill Number">
+</div>
+<div>
+<label>Purchase Date</label>
+<input type="date" id="date">
+</div>
+</div>
+</div>
+
+<div class="panel">
+<h3>Purchase Items</h3>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Raw Material</th>
+<th>Quantity</th>
+<th>Unit</th>
+<th>Rate (₹)</th>
+<th>Total (₹)</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="items"></tbody>
+</table>
+</div>
+
+<button onclick="addRow()">+ Add Item</button>
+</div>
+
+<div class="panel">
+<h3>Payment Details</h3>
+<div class="grid">
+<div>
+<label>Other Charges (₹)</label>
+<input type="number" id="charges" value="0" min="0" step="0.01" oninput="calculate()">
+</div>
+<div>
+<label>Paid Amount (₹)</label>
+<input type="number" id="paid" value="0" min="0" step="0.01" oninput="calculate()">
+</div>
+<div>
+<label>Notes</label>
+<input id="notes" placeholder="Optional notes">
+</div>
+</div>
+
+<div class="total">
+Subtotal: ₹<span id="subtotal">0.00</span><br>
+Total: ₹<span id="grandTotal">0.00</span><br>
+Due: ₹<strong id="due">0.00</strong>
+</div>
+
+<button id="saveBtn" onclick="savePurchase()">Save Purchase</button>
+<p id="message" class="message"></p>
+</div>
+
+<div class="panel">
+<h3>Purchase History</h3>
+<button class="blue" onclick="loadHistory()">Refresh History</button>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Bill No.</th>
+<th>Supplier</th>
+<th>Total</th>
+<th>Paid</th>
+<th>Due</th>
+</tr>
+</thead>
+<tbody id="history">
+<tr><td colspan="6">Loading...</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+</div>
+
+<script>
+const db=window.supabase.createClient(
+ window.SUPABASE_CONFIG.URL,
+ window.SUPABASE_CONFIG.KEY
+);
+
+let materials=[];
+let suppliers=[];
+
+document.getElementById("date").value=
+ new Date().toLocaleDateString("en-CA");
+
+async function init(){
+ try{
+  const {data:sessionData,error:sessionError}=
+   await db.auth.getSession();
+
+  if(sessionError||!sessionData.session){
+   location.replace("login.html");
+   return;
+  }
+
+  const [s,m]=await Promise.all([
+   db.from("suppliers").select("id,name").order("name"),
+   db.from("inventory_items")
+    .select("id,name,unit,purchase_price")
+    .order("name")
+  ]);
+
+  if(s.error)throw s.error;
+  if(m.error)throw m.error;
+
+  suppliers=s.data||[];
+  materials=m.data||[];
+
+  document.getElementById("supplier").innerHTML=
+   '<option value="">Select Supplier</option>'+
+   suppliers.map(x=>
+    `<option value="${x.id}">${escapeHTML(x.name)}</option>`
+   ).join("");
+
+  addRow();
+  loadHistory();
+
+ }catch(e){
+  document.getElementById("message").textContent=e.message;
+ }
+}
+
+function escapeHTML(v){
+ return String(v??"").replace(/[&<>"']/g,c=>({
+  "&":"&amp;","<":"&lt;",">":"&gt;",
+  '"':"&quot;","'":"&#39;"
+ }[c]));
+}
+
+function addRow(){
+ const tr=document.createElement("tr");
+
+ tr.innerHTML=`
+ <td><select class="material" onchange="materialChanged(this)">
+ <option value="">Select Material</option>
+ ${materials.map(x=>`<option value="${x.id}">${escapeHTML(x.name)}</option>`).join("")}
+ </select></td>
+ <td><input class="qty" type="number" min="0.001" step="any" value="1" oninput="calculate()"></td>
+ <td><input class="unit" readonly></td>
+ <td><input class="rate" type="number" min="0" step="0.01" value="0" oninput="calculate()"></td>
+ <td class="lineTotal">0.00</td>
+ <td><button class="remove" onclick="this.closest('tr').remove();calculate()">Remove</button></td>
+ `;
+
+ document.getElementById("items").appendChild(tr);
+}
+
+function materialChanged(select){
+ const item=materials.find(x=>x.id===select.value);
+ const row=select.closest("tr");
+
+ row.querySelector(".unit").value=item?.unit||"";
+ row.querySelector(".rate").value=item?.purchase_price??0;
+
+ calculate();
+}
+
+function calculate(){
+ let subtotal=0;
+
+ document.querySelectorAll("#items tr").forEach(row=>{
+  const qty=Number(row.querySelector(".qty").value)||0;
+  const rate=Number(row.querySelector(".rate").value)||0;
+  const total=qty*rate;
+
+  row.querySelector(".lineTotal").textContent=total.toFixed(2);
+  subtotal+=total;
+ });
+
+ const charges=Number(document.getElementById("charges").value)||0;
+ const paid=Number(document.getElementById("paid").value)||0;
+ const total=subtotal+charges;
+
+ document.getElementById("subtotal").textContent=subtotal.toFixed(2);
+ document.getElementById("grandTotal").textContent=total.toFixed(2);
+ document.getElementById("due").textContent=(total-paid).toFixed(2);
+}
+
+async function savePurchase(){
+ const msg=document.getElementById("message");
+ const btn=document.getElementById("saveBtn");
+
+ try{
+  const supplier=document.getElementById("supplier").value;
+  const bill=document.getElementById("bill").value.trim();
+  const date=document.getElementById("date").value;
+  const charges=Number(document.getElementById("charges").value)||0;
+  const paid=Number(document.getElementById("paid").value)||0;
+  const notes=document.getElementById("notes").value.trim();
+
+  if(!supplier)throw new Error("Please select a supplier.");
+  if(!date)throw new Error("Please select purchase date.");
+  if(charges<0||paid<0)throw new Error("Amounts cannot be negative.");
+
+  const rows=[...document.querySelectorAll("#items tr")];
+
+  const items=rows.map(row=>({
+   inventory_item_id:row.querySelector(".material").value,
+   quantity:Number(row.querySelector(".qty").value),
+   unit:row.querySelector(".unit").value,
+   rate:Number(row.querySelector(".rate").value)
+  }));
+
+  if(!items.length||items.some(x=>
+   !x.inventory_item_id||!x.unit||
+   !Number.isFinite(x.quantity)||x.quantity<=0||
+   !Number.isFinite(x.rate)||x.rate<0
+  )){
+   throw new Error("Please check all purchase items.");
+  }
+
+  const subtotal=items.reduce((sum,x)=>
+   sum+x.quantity*x.rate,0
+  );
+
+  const total=subtotal+charges;
+
+  if(paid>total)throw new Error("Paid amount cannot exceed total.");
+
+  btn.disabled=true;
+  btn.textContent="Saving...";
+
+  const {data:purchase,error:purchaseError}=await
+   db.from("purchases").insert({
+    supplier_id:supplier,
+    bill_number:bill||("PUR-"+Date.now()),
+    purchase_date:date,
+    subtotal:subtotal,
+    other_charges:charges,
+    total_amount:total,
+    paid_amount:paid,
+    notes:notes
+   }).select("id").single();
+
+  if(purchaseError)throw purchaseError;
+
+  const itemRows=items.map(x=>({
+   purchase_id:purchase.id,
+   inventory_item_id:x.inventory_item_id,
+   quantity:x.quantity,
+   unit:x.unit,
+   rate:x.rate,
+   total:x.quantity*x.rate
+  }));
+
+  const {error:itemError}=await
+   db.from("purchase_items").insert(itemRows);
+
+  if(itemError){
+   throw new Error(
+    "Purchase saved, but item saving failed: "+itemError.message+
+    ". Please do not submit again; check the saved purchase first."
+   );
+  }
+
+  msg.style.color="green";
+  msg.textContent="Purchase saved successfully!";
+
+  document.getElementById("bill").value="";
+  document.getElementById("charges").value=0;
+  document.getElementById("paid").value=0;
+  document.getElementById("notes").value="";
+  document.getElementById("items").innerHTML="";
+
+  addRow();
+  calculate();
+  await loadHistory();
+
+ }catch(e){
+  msg.style.color="red";
+  msg.textContent=e.message;
+ }finally{
+  btn.disabled=false;
+  btn.textContent="Save Purchase";
+ }
+}
+
+async function loadHistory(){
+ const body=document.getElementById("history");
+
+ try{
+  const {data,error}=await db.from("purchases")
+   .select("id,bill_number,purchase_date,supplier_id,total_amount,paid_amount")
+   .order("created_at",{ascending:false})
+   .limit(100);
+
+  if(error)throw error;
+
+  const names=Object.fromEntries(
+   suppliers.map(x=>[x.id,x.name])
+  );
+
+  body.innerHTML=(data||[]).map(x=>{
+   const total=Number(x.total_amount)||0;
+   const paid=Number(x.paid_amount)||0;
+
+   return `<tr>
+    <td>${escapeHTML(x.purchase_date)}</td>
+    <td>${escapeHTML(x.bill_number)}</td>
+    <td>${escapeHTML(names[x.supplier_id]||"Unknown")}</td>
+    <td>₹${total.toFixed(2)}</td>
+    <td>₹${paid.toFixed(2)}</td>
+    <td>₹${(total-paid).toFixed(2)}</td>
+   </tr>`;
+  }).join("")||'<tr><td colspan="6">No purchases found.</td></tr>';
+
+ }catch(e){
+  body.innerHTML=`<tr><td colspan="6">${escapeHTML(e.message)}</td></tr>`;
+ }
+}
+
+init();
+</script>
+</body>
+</html>
