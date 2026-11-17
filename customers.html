@@ -1,81 +1,178 @@
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Customer Management</title>
+<title>Customer Management - INDIAN MURI FACTORY</title>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+
 <style>
 *{box-sizing:border-box}
-body{margin:0;padding:15px;background:#f1f5f9;font-family:Arial,sans-serif;color:#1e293b}
-header{background:#166534;color:white;padding:17px;border-radius:10px;margin-bottom:18px}
-h2{margin:0}
-.panel{background:white;padding:18px;border-radius:10px;margin-bottom:18px;box-shadow:0 2px 8px #0001}
-input,textarea{width:100%;padding:12px;margin:7px 0 13px;border:1px solid #cbd5e1;border-radius:7px;font-size:15px}
-button{border:0;border-radius:7px;padding:11px 16px;background:#15803d;color:white;font-size:15px;cursor:pointer;margin:3px}
-.delete{background:#dc2626}
+body{
+ margin:0;padding:15px;background:#f1f5f9;
+ font-family:Arial,sans-serif;color:#1e293b
+}
+header{
+ background:#166534;color:white;padding:18px;
+ border-radius:12px;margin-bottom:18px
+}
+.panel{
+ background:white;padding:18px;border-radius:12px;
+ margin-bottom:18px;box-shadow:0 2px 8px #0001
+}
+h2,h3{margin-top:0}
+.grid{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:10px
+}
+label{display:block;font-weight:bold;font-size:14px;margin-top:10px}
+input,select,textarea{
+ width:100%;padding:12px;margin:6px 0;
+ border:1px solid #cbd5e1;border-radius:7px;
+ font-size:15px;background:white
+}
+button{
+ border:0;border-radius:7px;padding:11px 16px;
+ background:#15803d;color:white;font-size:14px;
+ cursor:pointer;margin:3px
+}
+button:disabled{opacity:.5}
 .edit{background:#2563eb}
+.delete{background:#dc2626}
 .back{background:#475569}
-table{width:100%;border-collapse:collapse;min-width:750px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:850px}
 th,td{padding:11px;border:1px solid #e2e8f0;text-align:left}
 th{background:#dcfce7}
-.table-wrap{overflow-x:auto}
-#status{font-weight:bold;margin:10px 0}
+#status{padding:10px;margin-top:10px;font-weight:bold}
+.hint{font-size:12px;color:#64748b}
+.search{margin-bottom:12px}
+@media(max-width:600px){
+ .grid{grid-template-columns:1fr}
+ body{padding:9px}
+ .panel{padding:13px}
+}
 </style>
 </head>
-<body>
+
+<body style="display:none">
 
 <header>
 <h2>🏭 INDIAN MURI FACTORY</h2>
-<p>Customer Management</p>
-<button class="back" onclick="location.href='index.html'">Back to Dashboard</button>
-<button onclick="logout()" style="background:#dc2626">Logout</button>
+<p>Customer Management System</p>
+<button class="back" onclick="location.href='index.html'">Dashboard</button>
+<button style="background:#dc2626" onclick="logout()">Logout</button>
 </header>
 
 <div class="panel">
-<h3 id="formTitle">Add New Customer</h3>
+<h3 id="formTitle">➕ নতুন Customer যোগ করুন</h3>
 
 <form id="customerForm">
+
 <input type="hidden" id="customerId">
 
-<label>Customer Name *</label>
-<input id="name" required placeholder="Enter customer name">
+<div class="grid">
 
-<label>Mobile Number</label>
-<input id="phone" type="tel" placeholder="Enter mobile number">
+<div>
+<label>Customer-এর নাম *</label>
+<input id="name" required placeholder="Customer Name">
+</div>
 
-<label>WhatsApp Number</label>
-<input id="whatsapp" type="tel" placeholder="Enter WhatsApp number">
+<div>
+<label>দোকানের নাম</label>
+<input id="shop_name" placeholder="Shop Name">
+</div>
 
-<label>Full Address</label>
-<textarea id="address" rows="3" placeholder="Enter customer address"></textarea>
+<div>
+<label>মোবাইল নম্বর</label>
+<input id="phone" type="tel" maxlength="10" placeholder="10 digit mobile">
+</div>
+
+<div>
+<label>WhatsApp নম্বর</label>
+<input id="whatsapp" type="tel" maxlength="10" placeholder="WhatsApp Number">
+</div>
+
+<div>
+<label>গ্রাম</label>
+<input id="village" placeholder="Village">
+</div>
+
+<div>
+<label>রাজ্য *</label>
+<select id="state" required>
+<option value="">রাজ্য নির্বাচন করুন</option>
+</select>
+</div>
+
+<div>
+<label>জেলা</label>
+<select id="district">
+<option value="">প্রথমে PIN Code দিন</option>
+</select>
+</div>
+
+<div>
+<label>PIN Code</label>
+<input id="pin_code" type="text" maxlength="6"
+inputmode="numeric" placeholder="6 digit PIN Code">
+</div>
+
+<div>
+<label>পোস্ট অফিস</label>
+<select id="post_office">
+<option value="">প্রথমে PIN Code দিন</option>
+</select>
+</div>
+
+<div>
+<label>পুলিশ স্টেশন</label>
+<input id="police_station" list="policeList"
+placeholder="Police Station লিখুন বা নির্বাচন করুন">
+<datalist id="policeList"></datalist>
+<p class="hint">তালিকায় না থাকলে নিজে নাম লিখুন।</p>
+</div>
+
+</div>
+
+<label>বাড়ি ও রাস্তার সম্পূর্ণ ঠিকানা</label>
+<textarea id="address" rows="3"
+placeholder="House No, Road, Area, Landmark"></textarea>
 
 <label>Opening Balance (₹)</label>
 <input id="balance" type="number" step="0.01" value="0">
 
 <label>Notes</label>
-<textarea id="notes" rows="2" placeholder="Optional notes"></textarea>
+<textarea id="notes" rows="2" placeholder="অন্য তথ্য"></textarea>
 
 <button type="submit" id="saveBtn">Save Customer</button>
 <button type="button" class="back" onclick="resetForm()">Clear</button>
+
 </form>
+
 <div id="status"></div>
 </div>
 
 <div class="panel">
-<h3>Customer List</h3>
-<input id="search" placeholder="Search customer..." oninput="renderCustomers()">
+<h3>👥 Customer List</h3>
+<input class="search" id="search"
+placeholder="নাম, দোকান, মোবাইল বা জেলা দিয়ে Search..."
+oninput="renderCustomers()">
+
 <div class="table-wrap">
 <table>
 <thead>
 <tr>
-<th>Name</th>
-<th>Phone</th>
-<th>WhatsApp</th>
-<th>Address</th>
+<th>নাম</th>
+<th>দোকান</th>
+<th>মোবাইল</th>
+<th>জেলা</th>
+<th>PIN</th>
 <th>Opening Balance</th>
-<th>Actions</th>
+<th>Action</th>
 </tr>
 </thead>
 <tbody id="customerRows"></tbody>
@@ -84,181 +181,351 @@ th{background:#dcfce7}
 </div>
 
 <script>
-const db = window.supabase.createClient(
-  window.SUPABASE_CONFIG.URL,
-  window.SUPABASE_CONFIG.KEY
+const db=window.supabase.createClient(
+ window.SUPABASE_CONFIG.URL,
+ window.SUPABASE_CONFIG.KEY
 );
 
-let customers = [];
+let customers=[];
 
-async function checkLogin(){
-  const {data,error}=await db.auth.getSession();
+const states=[
+"Andhra Pradesh","Arunachal Pradesh","Assam","Bihar",
+"Chhattisgarh","Goa","Gujarat","Haryana","Himachal Pradesh",
+"Jharkhand","Karnataka","Kerala","Madhya Pradesh",
+"Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland",
+"Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu",
+"Telangana","Tripura","Uttar Pradesh","Uttarakhand",
+"West Bengal","Andaman and Nicobar Islands","Chandigarh",
+"Dadra and Nagar Haveli and Daman and Diu","Delhi",
+"Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry"
+];
 
-  if(error || !data.session){
-    location.replace("login.html");
-    return false;
-  }
-  document.body.style.display="block";
-  return true;
-}
+const stateSelect=document.getElementById("state");
+
+states.forEach(s=>{
+ const op=document.createElement("option");
+ op.value=s;
+ op.textContent=s;
+ stateSelect.appendChild(op);
+});
 
 document.body.style.display="none";
 
 async function start(){
-  if(await checkLogin()) await loadCustomers();
+ const {data,error}=await db.auth.getSession();
+
+ if(error || !data.session){
+  location.replace("login.html");
+  return;
+ }
+
+ document.body.style.display="block";
+ await loadCustomers();
 }
+
 start();
 
 async function logout(){
-  await db.auth.signOut();
-  location.replace("login.html");
+ await db.auth.signOut();
+ location.replace("login.html");
 }
 
-function message(text){
-  document.getElementById("status").textContent=text;
+function message(t){
+ document.getElementById("status").textContent=t;
 }
 
-async function loadCustomers(){
-  message("Loading customers...");
+// PIN CODE LOOKUP - INDIA POST
+let pinTimer;
 
-  const {data,error}=await db
-    .from("customers")
-    .select("id,name,phone,whatsapp,address,opening_balance,notes")
-    .order("name");
+document.getElementById("pin_code").addEventListener("input",()=>{
+ clearTimeout(pinTimer);
 
-  if(error){
-    message("Error: "+error.message);
-    return;
-  }
+ const pin=document.getElementById("pin_code").value.trim();
 
-  customers=data||[];
-  message("Total Customers: "+customers.length);
-  renderCustomers();
-}
+ if(!/^[0-9]{6}$/.test(pin))return;
 
-function renderCustomers(){
-  const q=document.getElementById("search").value.toLowerCase();
-
-  const filtered=customers.filter(c=>
-    [c.name,c.phone,c.whatsapp,c.address]
-    .some(v=>(v||"").toLowerCase().includes(q))
-  );
-
-  document.getElementById("customerRows").innerHTML="";
-
-  filtered.forEach(c=>{
-    const tr=document.createElement("tr");
-
-    function cell(value){
-      const td=document.createElement("td");
-      td.textContent=value??"";
-      tr.appendChild(td);
-    }
-
-    cell(c.name);
-    cell(c.phone);
-    cell(c.whatsapp);
-    cell(c.address);
-    cell("₹"+Number(c.opening_balance||0).toFixed(2));
-
-    const td=document.createElement("td");
-
-    const edit=document.createElement("button");
-    edit.className="edit";
-    edit.textContent="Edit";
-    edit.onclick=()=>editCustomer(c.id);
-
-    const del=document.createElement("button");
-    del.className="delete";
-    del.textContent="Delete";
-    del.onclick=()=>deleteCustomer(c.id);
-
-    td.append(edit,del);
-    tr.appendChild(td);
-
-    document.getElementById("customerRows").appendChild(tr);
-  });
-}
-
-document.getElementById("customerForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-
-  const id=document.getElementById("customerId").value;
-
-  const customer={
-    name:document.getElementById("name").value.trim(),
-    phone:document.getElementById("phone").value.trim(),
-    whatsapp:document.getElementById("whatsapp").value.trim(),
-    address:document.getElementById("address").value.trim(),
-    opening_balance:Number(document.getElementById("balance").value||0),
-    notes:document.getElementById("notes").value.trim()
-  };
-
-  if(!customer.name){
-    message("Customer name is required.");
-    return;
-  }
-
-  document.getElementById("saveBtn").disabled=true;
-  message("Saving...");
-
-  let result;
-
-  if(id){
-    result=await db.from("customers").update(customer).eq("id",id);
-  }else{
-    result=await db.from("customers").insert(customer);
-  }
-
-  document.getElementById("saveBtn").disabled=false;
-
-  if(result.error){
-    message("Error: "+result.error.message);
-    return;
-  }
-
-  message(id?"Customer updated successfully!":"Customer added successfully!");
-  resetForm();
-  await loadCustomers();
+ pinTimer=setTimeout(()=>lookupPin(pin),400);
 });
 
-function editCustomer(id){
-  const c=customers.find(x=>x.id===id);
-  if(!c)return;
+async function lookupPin(pin){
+ message("🔎 Post Office খোঁজা হচ্ছে...");
 
-  document.getElementById("customerId").value=c.id;
-  document.getElementById("name").value=c.name||"";
-  document.getElementById("phone").value=c.phone||"";
-  document.getElementById("whatsapp").value=c.whatsapp||"";
-  document.getElementById("address").value=c.address||"";
-  document.getElementById("balance").value=c.opening_balance||0;
-  document.getElementById("notes").value=c.notes||"";
+ try{
+  const response=await fetch(
+   "https://api.postalpincode.in/pincode/"+pin
+  );
 
-  document.getElementById("formTitle").textContent="Edit Customer";
-  document.getElementById("saveBtn").textContent="Update Customer";
-  window.scrollTo({top:0,behavior:"smooth"});
-}
+  const result=await response.json();
 
-async function deleteCustomer(id){
-  if(!confirm("Are you sure you want to delete this customer?"))return;
-
-  const {error}=await db.from("customers").delete().eq("id",id);
-
-  if(error){
-    message("Error: "+error.message);
-    return;
+  if(!result[0] || result[0].Status!=="Success"){
+   message("এই PIN Code পাওয়া যায়নি।");
+   return;
   }
 
-  message("Customer deleted successfully.");
-  await loadCustomers();
+  const offices=result[0].PostOffice||[];
+
+  const districtSelect=document.getElementById("district");
+  const postSelect=document.getElementById("post_office");
+
+  districtSelect.innerHTML="";
+  postSelect.innerHTML="";
+
+  const districts=[...new Set(offices.map(x=>x.District))];
+
+  districts.forEach(d=>{
+   const op=document.createElement("option");
+   op.value=d;
+   op.textContent=d;
+   districtSelect.appendChild(op);
+  });
+
+  offices.forEach(o=>{
+   const op=document.createElement("option");
+   op.value=o.Name;
+   op.textContent=o.Name+" ("+o.BranchType+")";
+   op.dataset.district=o.District;
+   op.dataset.state=o.State;
+   postSelect.appendChild(op);
+  });
+
+  function updateAddress(){
+   const selected=postSelect.selectedOptions[0];
+   if(!selected)return;
+
+   districtSelect.value=selected.dataset.district;
+   stateSelect.value=selected.dataset.state;
+  }
+
+  postSelect.onchange=updateAddress;
+  districtSelect.onchange=()=>{
+   const first=offices.find(o=>o.District===districtSelect.value);
+   if(first){
+    postSelect.value=first.Name;
+    stateSelect.value=first.State;
+   }
+  };
+
+  updateAddress();
+  message("✅ "+offices.length+" টি Post Office পাওয়া গেছে।");
+
+ }catch(e){
+  message("Internet বা India Post API সংযোগ সমস্যা: "+e.message);
+ }
 }
 
+// LOAD CUSTOMERS
+async function loadCustomers(){
+ message("Loading...");
+
+ const {data,error}=await db
+ .from("customers")
+ .select("*")
+ .order("name");
+
+ if(error){
+  message("Database Error: "+error.message);
+  return;
+ }
+
+ customers=data||[];
+ message("মোট Customer: "+customers.length);
+ renderCustomers();
+}
+
+// SHOW CUSTOMER
+function renderCustomers(){
+ const q=document.getElementById("search").value.toLowerCase();
+
+ const filtered=customers.filter(c=>
+  [
+   c.name,c.shop_name,c.phone,c.whatsapp,
+   c.village,c.district,c.pin_code
+  ].some(v=>String(v||"").toLowerCase().includes(q))
+ );
+
+ const tbody=document.getElementById("customerRows");
+ tbody.innerHTML="";
+
+ filtered.forEach(c=>{
+  const tr=document.createElement("tr");
+
+  function cell(v){
+   const td=document.createElement("td");
+   td.textContent=v??"";
+   tr.appendChild(td);
+  }
+
+  cell(c.name);
+  cell(c.shop_name);
+  cell(c.phone);
+  cell(c.district);
+  cell(c.pin_code);
+  cell("₹"+Number(c.opening_balance||0).toFixed(2));
+
+  const td=document.createElement("td");
+
+  const edit=document.createElement("button");
+  edit.className="edit";
+  edit.textContent="Edit";
+  edit.onclick=()=>editCustomer(c.id);
+
+  const del=document.createElement("button");
+  del.className="delete";
+  del.textContent="Delete";
+  del.onclick=()=>deleteCustomer(c.id);
+
+  td.append(edit,del);
+  tr.appendChild(td);
+  tbody.appendChild(tr);
+ });
+}
+
+// SAVE CUSTOMER
+document.getElementById("customerForm")
+.addEventListener("submit",async e=>{
+ e.preventDefault();
+
+ const id=document.getElementById("customerId").value;
+
+ const customer={
+  name:val("name"),
+  shop_name:val("shop_name"),
+  phone:val("phone"),
+  whatsapp:val("whatsapp"),
+  village:val("village"),
+  state:val("state"),
+  district:val("district"),
+  post_office:val("post_office"),
+  police_station:val("police_station"),
+  pin_code:val("pin_code"),
+  address:val("address"),
+  opening_balance:Number(val("balance")||0),
+  notes:val("notes")
+ };
+
+ if(!customer.name){
+  message("Customer-এর নাম লিখুন।");
+  return;
+ }
+
+ if(customer.pin_code && !/^[0-9]{6}$/.test(customer.pin_code)){
+  message("PIN Code 6 সংখ্যার হতে হবে।");
+  return;
+ }
+
+ const btn=document.getElementById("saveBtn");
+ btn.disabled=true;
+ message("Saving Customer...");
+
+ let result;
+
+ if(id){
+  result=await db.from("customers")
+   .update(customer).eq("id",id);
+ }else{
+  result=await db.from("customers")
+   .insert(customer);
+ }
+
+ btn.disabled=false;
+
+ if(result.error){
+  message("Database Error: "+result.error.message);
+  return;
+ }
+
+ message(id?"Customer Updated Successfully!":
+  "Customer Added Successfully!");
+
+ resetForm();
+ await loadCustomers();
+});
+
+function val(id){
+ return document.getElementById(id).value.trim();
+}
+
+// EDIT
+function editCustomer(id){
+ const c=customers.find(x=>x.id===id);
+ if(!c)return;
+
+ const fields={
+  name:c.name,
+  shop_name:c.shop_name,
+  phone:c.phone,
+  whatsapp:c.whatsapp,
+  village:c.village,
+  state:c.state,
+  police_station:c.police_station,
+  pin_code:c.pin_code,
+  address:c.address,
+  balance:c.opening_balance,
+  notes:c.notes
+ };
+
+ Object.entries(fields).forEach(([key,value])=>{
+  document.getElementById(key).value=value??"";
+ });
+
+ document.getElementById("customerId").value=c.id;
+
+ const district=document.getElementById("district");
+ district.innerHTML="";
+ const op=document.createElement("option");
+ op.value=c.district||"";
+ op.textContent=c.district||"";
+ district.appendChild(op);
+
+ const post=document.getElementById("post_office");
+ post.innerHTML="";
+ const po=document.createElement("option");
+ po.value=c.post_office||"";
+ po.textContent=c.post_office||"";
+ post.appendChild(po);
+
+ document.getElementById("formTitle").textContent="Edit Customer";
+ document.getElementById("saveBtn").textContent="Update Customer";
+
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+
+// DELETE
+async function deleteCustomer(id){
+ const c=customers.find(x=>x.id===id);
+ if(!c)return;
+
+ if(!confirm("Customer "+c.name+" Delete করবেন?"))return;
+
+ const {error}=await db.from("customers")
+  .delete().eq("id",id);
+
+ if(error){
+  message("Delete Error: "+error.message);
+  return;
+ }
+
+ message("Customer Deleted Successfully!");
+ await loadCustomers();
+}
+
+// RESET
 function resetForm(){
-  document.getElementById("customerForm").reset();
-  document.getElementById("customerId").value="";
-  document.getElementById("balance").value="0";
-  document.getElementById("formTitle").textContent="Add New Customer";
-  document.getElementById("saveBtn").textContent="Save Customer";
+ document.getElementById("customerForm").reset();
+
+ document.getElementById("customerId").value="";
+ document.getElementById("balance").value="0";
+
+ document.getElementById("district").innerHTML=
+  '<option value="">প্রথমে PIN Code দিন</option>';
+
+ document.getElementById("post_office").innerHTML=
+  '<option value="">প্রথমে PIN Code দিন</option>';
+
+ document.getElementById("formTitle").textContent=
+  "➕ নতুন Customer যোগ করুন";
+
+ document.getElementById("saveBtn").textContent="Save Customer";
 }
 </script>
 </body>
