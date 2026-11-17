@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -219,7 +218,6 @@ th{background:#dcfce7}
 
 <div class="table-wrap">
 <table>
-
 <thead>
 <tr>
  <th>Product / Bag Type</th>
@@ -229,9 +227,7 @@ th{background:#dcfce7}
  <th>Action</th>
 </tr>
 </thead>
-
 <tbody id="itemsBody"></tbody>
-
 </table>
 </div>
 
@@ -242,7 +238,6 @@ th{background:#dcfce7}
 <hr>
 
 <div class="grid">
-
  <div>
   <label>Discount (₹)</label>
   <input id="discount" type="number" min="0" step="0.01" value="0">
@@ -252,33 +247,24 @@ th{background:#dcfce7}
   <label>Other Charges (₹)</label>
   <input id="charges" type="number" min="0" step="0.01" value="0">
  </div>
-
 </div>
 
 <div class="total">
-
  <div>Total Bags: <b id="totalBags">0</b></div>
-
  <div>Total Weight: <b id="totalWeight">0.000 KG</b></div>
-
  <div>Subtotal: ₹<b id="subtotal">0.00</b></div>
-
  <div>Discount: ₹<b id="discountView">0.00</b></div>
-
  <div>Other Charges: ₹<b id="chargesView">0.00</b></div>
-
  <div>
   <strong>
    Grand Total: ₹<span id="grandTotal">0.00</span>
   </strong>
  </div>
-
 </div>
 
 <hr>
 
 <div class="grid">
-
  <div>
   <label>Paid Amount (₹)</label>
   <input id="paid" type="number" min="0" step="0.01" value="0">
@@ -286,7 +272,6 @@ th{background:#dcfce7}
 
  <div>
   <label>Payment Method</label>
-
   <select id="paymentMethod">
    <option>Cash</option>
    <option>UPI</option>
@@ -294,9 +279,7 @@ th{background:#dcfce7}
    <option>Cheque</option>
    <option>Credit</option>
   </select>
-
  </div>
-
 </div>
 
 <label>Notes</label>
@@ -307,11 +290,9 @@ th{background:#dcfce7}
 </button>
 
 <div id="status"></div>
-
 </div>
 
 <div class="panel">
-
 <h3>Last Created Invoice</h3>
 
 <div id="lastInvoice">No invoice created yet.</div>
@@ -332,7 +313,6 @@ th{background:#dcfce7}
  onclick="sendWhatsApp()">
  📤 WHATSAPP SHARE (JPG)
 </button>
-
 </div>
 
 <div id="printArea"></div>
@@ -440,8 +420,7 @@ async function logout(){
 
  location.replace("login.html");
 }
-
-function customerFields(c){
+ function customerFields(c){
 
  return {
   name:c.name??c.customer_name??c.full_name??"",
@@ -888,8 +867,7 @@ async function saveInvoice(){
  btn.disabled=false;
 
 }
-
-function showBill(){
+ function showBill(){
 
  const x=lastBill;
 
@@ -1086,5 +1064,192 @@ function getWhatsAppNumber(){
   ""
  ).replace(/\D/g,"");
 
- // Indian 10 digit number হলে country code যোগ
- if(number.l
+ // ভারতীয় ১০ সংখ্যার নম্বরে +91 যোগ
+ if(number.length===10){
+  number="91"+number;
+ }
+
+ // +91 / 91-সহ ১২ সংখ্যার নম্বর গ্রহণ
+ if(number.length===12 && number.startsWith("91")){
+  return number;
+ }
+
+ return "";
+}
+
+function invoiceWhatsAppText(){
+
+ if(!lastBill)return "";
+
+ const i=lastBill.invoice;
+ const c=lastBill.customer;
+
+ return [
+  "🏭 "+FACTORY.name,
+  "Sales Invoice",
+  "Invoice No: "+(i.invoice_number||""),
+  "Date: "+(i.invoice_date||""),
+  "Customer: "+(c.name||""),
+  "Total Bags: "+lastBill.bags,
+  "Total Weight: "+Number(lastBill.weight||0).toFixed(3)+" KG",
+  "Grand Total: ₹"+Number(i.total_amount||0).toFixed(2),
+  "Paid: ₹"+Number(lastBill.paid||0).toFixed(2),
+  "Due: ₹"+Number(lastBill.due||0).toFixed(2),
+  "Thank you for your business!"
+ ].join("\n");
+}
+
+function openWhatsAppChat(){
+
+ if(!lastBill){
+  msg("Please save an invoice first.");
+  return;
+ }
+
+ const number=getWhatsAppNumber();
+
+ if(!number){
+  msg("Customer WhatsApp number is missing or invalid. Please check the customer details.");
+  return;
+ }
+
+ const url="https://wa.me/"+number+"?text="+
+  encodeURIComponent(invoiceWhatsAppText());
+
+ window.open(url,"_blank","noopener");
+}
+
+async function sendWhatsApp(){
+
+ if(!lastBill){
+  msg("Please save an invoice first.");
+  return;
+ }
+
+ const number=getWhatsAppNumber();
+
+ if(!number){
+  msg("Customer WhatsApp number is missing or invalid. Please check the customer details.");
+  return;
+ }
+
+ if(typeof html2canvas!=="function"){
+  msg("Invoice image library did not load. Please refresh the page and try again.");
+  return;
+ }
+
+ const btn=document.getElementById("whatsappBtn");
+ const oldText=btn.textContent;
+
+ btn.disabled=true;
+ btn.textContent="Preparing JPG...";
+ msg("Preparing invoice image...");
+
+ const area=document.getElementById("printArea");
+ const oldStyle={
+  display:area.style.display,
+  position:area.style.position,
+  left:area.style.left,
+  top:area.style.top,
+  width:area.style.width,
+  zIndex:area.style.zIndex
+ };
+
+ try{
+
+  // লুকানো Invoice-কে সাময়িকভাবে render করা
+  area.style.display="block";
+  area.style.position="absolute";
+  area.style.left="-10000px";
+  area.style.top="0";
+  area.style.width="800px";
+  area.style.zIndex="-1";
+
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+
+  const canvas=await html2canvas(area,{
+   scale:2,
+   backgroundColor:"#ffffff",
+   useCORS:true,
+   logging:false
+  });
+
+  const blob=await new Promise((resolve,reject)=>{
+   canvas.toBlob(result=>{
+    if(result)resolve(result);
+    else reject(new Error("Could not create invoice JPG."));
+   },"image/jpeg",0.95);
+  });
+
+  const file=new File(
+   [blob],
+   (lastBill.invoice.invoice_number||"invoice")+".jpg",
+   {type:"image/jpeg"}
+  );
+
+  const shareData={
+   files:[file],
+   title:"INDIAN MURI FACTORY Invoice",
+   text:invoiceWhatsAppText()
+  };
+
+  // সমর্থিত ডিভাইসে JPG সরাসরি Share Sheet-এ পাঠানো
+  if(
+   navigator.share &&
+   navigator.canShare &&
+   navigator.canShare(shareData)
+  ){
+   await navigator.share(shareData);
+   msg("Invoice JPG is ready to share.");
+  }else{
+
+   // Share API না থাকলে JPG ডাউনলোড হবে
+   const imageURL=URL.createObjectURL(blob);
+   const a=document.createElement("a");
+   a.href=imageURL;
+   a.download=file.name;
+   document.body.appendChild(a);
+   a.click();
+   a.remove();
+
+   setTimeout(()=>URL.revokeObjectURL(imageURL),60000);
+
+   // WhatsApp chat খুলবে; ডাউনলোড করা JPG নিজে attach করতে হবে
+   window.open(
+    "https://wa.me/"+number+"?text="+encodeURIComponent(invoiceWhatsAppText()),
+    "_blank",
+    "noopener"
+   );
+
+   msg("Invoice JPG downloaded. Attach the downloaded JPG in the WhatsApp chat.");
+  }
+
+ }catch(error){
+
+  if(error.name==="AbortError"){
+   msg("Sharing cancelled.");
+  }else{
+   msg("WhatsApp share error: "+error.message);
+  }
+
+ }finally{
+
+  Object.assign(area.style,oldStyle);
+  btn.disabled=false;
+  btn.textContent=oldText;
+
+ }
+
+}
+
+// Initial page setup
+window.addEventListener("error",event=>{
+ const status=document.getElementById("status");
+ if(status && event.message){
+  status.textContent="Page Error: "+event.message;
+ }
+});
+
+</script>
+</body>
+</html>
