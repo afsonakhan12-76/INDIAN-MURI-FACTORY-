@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Production Management</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f1f5f9;font-family:Arial,sans-serif;color:#172033}
+header{background:linear-gradient(120deg,#075985,#0f766e);color:white;padding:20px}
+header h2{margin:0 0 7px}
+header button{background:white;color:#075985;border:0;padding:9px 15px;border-radius:8px;font-weight:bold}
+main{max-width:1100px;margin:auto;padding:15px}
+.card{background:white;border-radius:13px;padding:17px;margin-bottom:16px;box-shadow:0 3px 12px #0000000c}
+h3{margin:0 0 15px;color:#075985}
+label{display:block;font-size:13px;font-weight:bold;margin:10px 0 5px}
+input,select,textarea{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;background:white}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+button{cursor:pointer;border:0;border-radius:8px;padding:11px 15px;font-weight:bold}
+.add{background:#dbeafe;color:#1d4ed8}
+.remove{background:#fee2e2;color:#b91c1c}
+.save{background:#059669;color:white;width:100%;font-size:16px;margin-top:15px}
+.item{border:1px solid #dbeafe;border-radius:10px;padding:12px;margin:12px 0}
+.total{background:#ecfdf5;padding:13px;border-radius:9px;margin-top:12px;font-weight:bold}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th,td{padding:10px;border-bottom:1px solid #e2e8f0;text-align:left;font-size:13px}
+th{background:#e0f2fe}
+.tablewrap{overflow-x:auto}
+#message{padding:10px;border-radius:8px;margin:10px 0;display:none}
+@media(max-width:600px){header{padding:16px}main{padding:10px}.card{padding:13px}}
+</style>
+</head>
+<body>
+
+<header>
+  <h2>🏭 INDIAN MURI FACTORY</h2>
+  <div>Production Management</div>
+  <br>
+  <button onclick="location.href='index.html'">← Dashboard</button>
+</header>
+
+<main>
+  <div id="message"></div>
+
+  <section class="card">
+    <h3>📝 Production Details</h3>
+    <div class="grid">
+      <div>
+        <label>Batch Number</label>
+        <input id="batchNumber" placeholder="Auto generated">
+      </div>
+      <div>
+        <label>Production Date</label>
+        <input id="productionDate" type="date">
+      </div>
+      <div>
+        <label>Total Production Expense (₹)</label>
+        <input id="expense" type="number" min="0" step="0.01" value="0">
+      </div>
+    </div>
+    <label>Notes</label>
+    <textarea id="notes" rows="2" placeholder="Production notes"></textarea>
+  </section>
+
+  <section class="card">
+    <h3>📦 Raw Materials Used</h3>
+    <div id="inputRows"></div>
+    <button class="add" onclick="addInputRow()">+ Add Raw Material</button>
+  </section>
+
+  <section class="card">
+    <h3>🛍️ Finished Products</h3>
+    <div id="outputRows"></div>
+    <button class="add" onclick="addOutputRow()">+ Add Finished Product</button>
+    <div class="total">
+      Total Bags: <span id="totalBags">0</span><br>
+      Total Produced Weight: <span id="totalWeight">0.000</span> KG
+    </div>
+  </section>
+
+  <button class="save" id="saveButton" onclick="saveProduction()">SAVE PRODUCTION</button>
+
+  <section class="card" style="margin-top:20px">
+    <h3>📋 Production History</h3>
+    <button class="add" onclick="loadHistory()">↻ Refresh</button>
+    <div class="tablewrap" style="margin-top:12px">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Batch</th>
+            <th>Expense</th>
+          </tr>
+        </thead>
+        <tbody id="history">
+          <tr><td colspan="3">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+const cfg = window.SUPABASE_CONFIG;
+if(!cfg || !cfg.URL || !cfg.KEY){
+  document.body.innerHTML = "Supabase configuration missing. Please check config.js.";
+  throw new Error("Supabase configuration missing");
+}
+
+const db = window.supabase.createClient(cfg.URL,cfg.KEY);
+
+let materials=[];
+let variants=[];
+let busy=false;
+
+function showMessage(msg,error=false){
+  const box=document.getElementById("message");
+  box.style.display="block";
+  box.style.background=error?"#fee2e2":"#dcfce7";
+  box.style.color=error?"#991b1b":"#166534";
+  box.textContent=msg;
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function esc(v){
+  return String(v??"").replace(/[&<>"']/g,c=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
+async function init(){
+  const {data:{session},error}=await db.auth.getSession();
+  if(error || !session){
+    location.replace("login.html");
+    return;
+  }
+
+  document.getElementById("productionDate").value=
+    new Date().toLocaleDateString("en-CA");
+
+  document.getElementById("batchNumber").value=
+    "PRD-"+Date.now().toString().slice(-8);
+
+  const [m,v]=await Promise.all([
+    db.from("inventory_items")
+      .select("id,name,unit")
+      .order("name"),
+    db.from("product_variants")
+      .select("id,variant_name,weight_kg,bag_color,active,products(name)")
+      .eq("active",true)
+      .order("variant_name")
+  ]);
+
+  if(m.error){showMessage("Raw materials loading error: "+m.error.message,true);return;}
+  if(v.error){showMessage("Product variants loading error: "+v.error.message,true);return;}
+
+  materials=m.data||[];
+  variants=v.data||[];
+
+  addInputRow();
+  addOutputRow();
+  await loadHistory();
+}
+
+function materialOptions(){
+  return '<option value="">Select Raw Material</option>'+
+    materials.map(x=>`<option value="${x.id}">${esc(x.name)} (${esc(x.unit)})</option>`).join("");
+}
+
+function variantOptions(){
+  return '<option value="">Select Product / Bag Weight</option>'+
+    variants.map(x=>{
+      const product=x.products?.name||"Product";
+      return `<option value="${x.id}" data-weight="${Number(x.weight_kg)||0}">
+        ${esc(product)} - ${esc(x.variant_name)} - ${Number(x.weight_kg)||0} KG
+      </option>`;
+    }).join("");
+}
+
+function addInputRow(){
+  const div=document.createElement("div");
+  div.className="item inputRow";
+  div.innerHTML=`
+    <div class="grid">
+      <div>
+        <label>Raw Material</label>
+        <select class="material">${materialOptions()}</select>
+      </div>
+      <div>
+        <label>Quantity Used</label>
+        <input class="materialQty" type="number" min="0.001" step="any" placeholder="Quantity">
+      </div>
+      <div>
+        <label>Unit</label>
+        <input class="materialUnit" readonly placeholder="Auto">
+      </div>
+    </div>
+    <button class="remove" onclick="this.closest('.inputRow').remove()">Remove</button>
+  `;
+  div.querySelector(".material").addEventListener("change",e=>{
+    const item=materials.find(x=>x.id===e.target.value);
+    div.querySelector(".materialUnit").value=item?.unit||"";
+  });
+  document.getElementById("inputRows").appendChild(div);
+}
+
+function addOutputRow(){
+  const div=document.createElement("div");
+  div.className="item outputRow";
+  div.innerHTML=`
+    <div class="grid">
+      <div>
+        <label>Product / Bag Weight</label>
+        <select class="variant">${variantOptions()}</select>
+      </div>
+      <div>
+        <label>Number of Bags</label>
+        <input class="bagCount" type="number" min="1" step="1" placeholder="Bag quantity">
+      </div>
+      <div>
+        <label>Weight per Bag (KG)</label>
+        <input class="bagWeight" readonly>
+      </div>
+      <div>
+        <label>Total Weight (KG)</label>
+        <input class="lineWeight" readonly>
+      </div>
+    </div>
+    <button class="remove" onclick="this.closest('.outputRow').remove();calculateTotals()">Remove</button>
+  `;
+
+  const variant=div.querySelector(".variant");
+  const count=div.querySelector(".bagCount");
+
+  function calc(){
+    const opt=variant.selectedOptions[0];
+    const weight=Number(opt?.dataset.weight)||0;
+    const bags=Number(count.value)||0;
+    div.querySelector(".bagWeight").value=weight?weight:"";
+    div.querySelector(".lineWeight").value=(weight*bags).toFixed(3);
+    calculateTotals();
+  }
+
+  variant.addEventListener("change",calc);
+  count.addEventListener("input",calc);
+  document.getElementById("outputRows").appendChild(div);
+}
+
+function calculateTotals(){
+  let bags=0,weight=0;
+  document.querySelectorAll(".outputRow").forEach(row=>{
+    const n=Number(row.querySelector(".bagCount").value)||0;
+    const w=Number(row.querySelector(".bagWeight").value)||0;
+    bags+=n;
+    weight+=n*w;
+  });
+  document.getElementById("totalBags").textContent=bags;
+  document.getElementById("totalWeight").textContent=weight.toFixed(3);
+}
+
+async function saveProduction(){
+  if(busy)return;
+
+  const date=document.getElementById("productionDate").value;
+  const batchNumber=document.getElementById("batchNumber").value.trim();
+  const expense=Number(document.getElementById("expense").value)||0;
+
+  if(!date || !batchNumber){
+    showMessage("Please enter production date and batch number.",true);
+    return;
+  }
+
+  const inputs=[];
+  for(const row of document.querySelectorAll(".inputRow")){
+    const id=row.querySelector(".material").value;
+    const qty=Number(row.querySelector(".materialQty").value);
+    if(!id && !qty)continue;
+    if(!id || !Number.isFinite(qty) || qty<=0){
+      showMessage("Please check every raw material entry.",true);
+      return;
+    }
+    inputs.push({
+      inventory_item_id:id,
+      quantity:qty
+    });
+  }
+
+  const outputs=[];
+  for(const row of document.querySelectorAll(".outputRow")){
+    const id=row.querySelector(".variant").value;
+    const count=Number(row.querySelector(".bagCount").value);
+    if(!id && !count)continue;
+    if(!id || !Number.isInteger(count) || count<=0){
+      showMessage("Please check every finished product entry.",true);
+      return;
+    }
+    const variant=variants.find(x=>x.id===id);
+    if(!variant || !Number(variant.weight_kg)){
+      showMessage("Selected product has no valid bag weight.",true);
+      return;
+    }
+    outputs.push({
+      variant_id:id,
+      bag_count:count,
+      total_weight_kg:count*Number(variant.weight_kg)
+    });
+  }
+
+  if(inputs.length===0 || outputs.length===0){
+    showMessage("Add at least one raw material and one finished product.",true);
+    return;
+  }
+
+  busy=true;
+  const btn=document.getElementById("saveButton");
+  btn.disabled=true;
+  btn.textContent="SAVING...";
+
+  try{
+    const {data:batch,error:batchError}=await db
+      .from("production_batches")
+      .insert({
+        batch_number:batchNumber,
+        production_date:date,
+        total_expense:expense,
+        notes:document.getElementById("notes").value.trim()
+      })
+      .select("id")
+      .single();
+
+    if(batchError)throw new Error("Batch save failed: "+batchError.message);
+
+    const inputRows=inputs.map(x=>({...x,batch_id:batch.id}));
+    const outputRows=outputs.map(x=>({...x,batch_id:batch.id}));
+
+    const {error:inputError}=await db.from("production_inputs").insert(inputRows);
+    if(inputError){
+      showMessage("Batch created, but raw material saving failed. Do not submit again. Batch: "+batchNumber+" | "+inputError.message,true);
+      return;
+    }
+
+    const {error:outputError}=await db.from("production_outputs").insert(outputRows);
+    if(outputError){
+      showMessage("Batch and raw material entries saved, but finished products failed. Do not submit again. Batch: "+batchNumber+" | "+outputError.message,true);
+      return;
+    }
+
+    showMessage("Production saved successfully! Batch: "+batchNumber);
+    document.getElementById("inputRows").innerHTML="";
+    document.getElementById("outputRows").innerHTML="";
+    document.getElementById("expense").value="0";
+    document.getElementById("notes").value="";
+    document.getElementById("batchNumber").value="PRD-"+Date.now().toString().slice(-8);
+    addInputRow();
+    addOutputRow();
+    await loadHistory();
+
+  }catch(e){
+    showMessage(e.message||"Something went wrong.",true);
+  }finally{
+    busy=false;
+    btn.disabled=false;
+    btn.textContent="SAVE PRODUCTION";
+  }
+}
+
+async function loadHistory(){
+  const tbody=document.getElementById("history");
+  const {data,error}=await db.from("production_batches")
+    .select("batch_number,production_date,total_expense")
+    .order("production_date",{ascending:false})
+    .limit(50);
+
+  if(error){
+    tbody.innerHTML=`<tr><td colspan="3">${esc(error.message)}</td></tr>`;
+    return;
+  }
+
+  if(!data?.length){
+    tbody.innerHTML='<tr><td colspan="3">No production records found.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML=data.map(x=>`
+    <tr>
+      <td>${esc(x.production_date)}</td>
+      <td>${esc(x.batch_number)}</td>
+      <td>₹${Number(x.total_expense||0).toFixed(2)}</td>
+    </tr>
+  `).join("");
+}
+
+init();
+</script>
+</body>
+</html>
