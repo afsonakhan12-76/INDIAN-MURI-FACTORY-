@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Management - INDIAN MURI FACTORY</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f2f5f3;font-family:Arial,sans-serif;color:#17231c}
+header{background:#126b3a;color:white;padding:18px}
+header h2{margin:0;font-size:21px}
+header p{margin:5px 0 0;font-size:13px}
+main{max-width:1100px;margin:auto;padding:14px}
+.card{background:white;padding:16px;border-radius:12px;margin-bottom:14px;box-shadow:0 2px 8px #00000010}
+h3{margin:0 0 14px;color:#126b3a}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+input,select,button,textarea{width:100%;padding:12px;border:1px solid #ccd5ce;border-radius:8px;font-size:15px;background:white}
+button{border:0;background:#137a42;color:white;font-weight:bold;cursor:pointer;margin-top:8px}
+button.secondary{background:#46534b}
+button.small{width:auto;padding:8px 12px;margin:3px}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th,td{padding:10px;border-bottom:1px solid #e5eae6;text-align:left;font-size:13px}
+th{background:#eaf4ed}
+.tablewrap{overflow-x:auto}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:#eaf4ed;padding:12px;border-radius:9px}
+.stat b{display:block;font-size:19px;color:#126b3a;margin-top:5px}
+.muted{color:#657269;font-size:13px}
+.status{font-weight:bold}
+.error{color:#b42318;white-space:pre-wrap}
+.success{color:#137a42}
+.line{border-top:1px solid #e5eae6;margin:14px 0}
+@media(max-width:600px){
+ .grid{grid-template-columns:1fr}
+ .stats{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header>
+<h2>INDIAN MURI FACTORY</h2>
+<p>Sales & Payment Management</p>
+</header>
+
+<main>
+<div id="message" class="card muted">লোড হচ্ছে...</div>
+
+<section class="stats">
+ <div class="stat">মোট বিল <b id="totalSales">₹0</b></div>
+ <div class="stat">আদায় <b id="totalPaid">₹0</b></div>
+ <div class="stat">বাকি <b id="totalDue">₹0</b></div>
+</section>
+
+<div class="card">
+<h3>নতুন বিক্রির বিল তৈরি</h3>
+<label>কাস্টমার নির্বাচন</label>
+<select id="customer">
+<option value="">কাস্টমার নির্বাচন করুন</option>
+</select>
+
+<div class="line"></div>
+<h3>পণ্য নির্বাচন</h3>
+<div class="grid">
+ <div>
+  <label>মুড়ির প্যাকেট</label>
+  <select id="variant">
+   <option value="">পণ্য নির্বাচন করুন</option>
+  </select>
+ </div>
+ <div>
+  <label>পরিমাণ (প্যাকেট)</label>
+  <input id="qty" type="number" min="1" step="1" value="1">
+ </div>
+ <div>
+  <label>প্রতি প্যাকেটের দাম (₹)</label>
+  <input id="price" type="number" min="0" step="0.01" placeholder="দাম">
+ </div>
+ <div>
+  <label>ডিসকাউন্ট (₹)</label>
+  <input id="discount" type="number" min="0" step="0.01" value="0">
+ </div>
+</div>
+<button onclick="addItem()">+ বিলের পণ্য যোগ করুন</button>
+
+<div class="tablewrap" style="margin-top:12px">
+<table>
+<thead><tr><th>পণ্য</th><th>পরিমাণ</th><th>দাম</th><th>মোট</th><th>বাদ</th></tr></thead>
+<tbody id="cart"></tbody>
+</table>
+</div>
+<p>সর্বমোট: <b id="grandTotal">₹0.00</b></p>
+<label>প্রাথমিক জমা (₹)</label>
+<input id="initialPaid" type="number" min="0" step="0.01" value="0">
+<label>পেমেন্ট পদ্ধতি</label>
+<select id="initialMethod">
+<option>Cash</option><option>UPI</option><option>Bank</option><option>Other</option>
+</select>
+<label>নোট</label>
+<textarea id="invoiceNotes" rows="2" placeholder="বিল সম্পর্কে কিছু লিখুন"></textarea>
+<button onclick="createInvoice()">বিল তৈরি করুন</button>
+</div>
+
+<div class="card">
+<h3>কাস্টমারের টাকা জমা নিন</h3>
+<label>ইনভয়েস নির্বাচন</label>
+<select id="paymentInvoice">
+<option value="">ইনভয়েস নির্বাচন করুন</option>
+</select>
+<div class="grid">
+ <div>
+  <label>জমার পরিমাণ (₹)</label>
+  <input id="paymentAmount" type="number" min="0.01" step="0.01" placeholder="টাকার পরিমাণ">
+ </div>
+ <div>
+  <label>পেমেন্ট পদ্ধতি</label>
+  <select id="paymentMethod">
+   <option>Cash</option><option>UPI</option><option>Bank</option><option>Other</option>
+  </select>
+ </div>
+</div>
+<label>নোট</label>
+<input id="paymentNotes" placeholder="ঐচ্ছিক">
+<button onclick="savePayment()">পেমেন্ট জমা করুন</button>
+</div>
+
+<div class="card">
+<h3>বিক্রির ইনভয়েস তালিকা</h3>
+<button class="secondary" onclick="loadInvoices()">রিফ্রেশ করুন</button>
+<div class="tablewrap">
+<table>
+<thead>
+<tr><th>ইনভয়েস</th><th>তারিখ</th><th>কাস্টমার</th><th>মোট</th><th>জমা</th><th>বাকি</th><th>অবস্থা</th></tr>
+</thead>
+<tbody id="invoiceList"></tbody>
+</table>
+</div>
+</div>
+</main>
+
+<script>
+let db=null;
+let customers=[];
+let variants=[];
+let cart=[];
+let invoices=[];
+
+function configValue(){
+ const c=window.AFSONA_CONFIG || window.SUPABASE_CONFIG || {};
+ const url=c.supabaseUrl || c.url || c.SUPABASE_URL || window.SUPABASE_URL;
+ const key=c.supabaseKey || c.anonKey || c.anon_key || c.key ||
+           c.SUPABASE_ANON_KEY || window.SUPABASE_ANON_KEY;
+ return {url,key};
+}
+function msg(t,kind="muted"){
+ const el=document.getElementById("message");
+ el.className="card "+kind;
+ el.textContent=t;
+}
+function money(n){return "₹"+Number(n||0).toFixed(2)}
+function esc(s){
+ return String(s??"").replace(/[&<>"']/g,c=>({
+ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+ }[c]));
+}
+
+async function start(){
+ try{
+  const c=configValue();
+  if(!c.url || !c.key) throw new Error("config.js-এ Supabase URL অথবা Anon Key পাওয়া যায়নি।");
+  db=window.supabase.createClient(c.url,c.key);
+  await Promise.all([loadCustomers(),loadVariants(),loadInvoices()]);
+  msg("Sales Management চালু হয়েছে।","success");
+ }catch(e){msg("সমস্যা: "+e.message,"error")}
+}
+
+async function loadCustomers(){
+ const {data,error}=await db.from("customers")
+  .select("id,name,shop_name,phone").order("name");
+ if(error) throw error;
+ customers=data||[];
+ document.getElementById("customer").innerHTML=
+  '<option value="">কাস্টমার নির্বাচন করুন</option>'+
+  customers.map(c=>`<option value="${c.id}">${esc(c.name)}${c.shop_name?" - "+esc(c.shop_name):""}</option>`).join("");
+}
+
+async function loadVariants(){
+ const {data,error}=await db.from("product_variants")
+  .select("id,variant_name,weight_kg,selling_price,active,products(name)")
+  .eq("active",true).order("variant_name");
+ if(error) throw error;
+ variants=data||[];
+ document.getElementById("variant").innerHTML=
+  '<option value="">পণ্য নির্বাচন করুন</option>'+
+  variants.map(v=>`<option value="${v.id}">${esc(v.products?.name||"মুড়ি")} - ${esc(v.variant_name)} (${v.weight_kg} KG)</option>`).join("");
+}
+
+document.getElementById("variant").addEventListener("change",()=>{
+ const v=variants.find(x=>x.id===document.getElementById("variant").value);
+ if(v) document.getElementById("price").value=v.selling_price||0;
+});
+
+function addItem(){
+ const id=document.getElementById("variant").value;
+ const v=variants.find(x=>x.id===id);
+ const qty=Number(document.getElementById("qty").value);
+ const price=Number(document.getElementById("price").value);
+ if(!v || !Number.isInteger(qty) || qty<=0 || !Number.isFinite(price) || price<0){
+  alert("সঠিক পণ্য, পরিমাণ ও দাম দিন");return;
+ }
+ cart.push({variant_id:v.id,name:(v.products?.name||"মুড়ি")+" - "+v.variant_name,quantity:qty,unit_price:price,total:qty*price});
+ renderCart();
+}
+function renderCart(){
+ document.getElementById("cart").innerHTML=cart.map((x,i)=>`
+ <tr><td>${esc(x.name)}</td><td>${x.quantity}</td><td>${money(x.unit_price)}</td>
+ <td>${money(x.total)}</td><td><button class="small secondary" onclick="removeItem(${i})">বাদ</button></td></tr>
+ `).join("");
+ const subtotal=cart.reduce((s,x)=>s+x.total,0);
+ const discount=Math.max(0,Number(document.getElementById("discount").value)||0);
+ document.getElementById("grandTotal").textContent=money(Math.max(0,subtotal-discount));
+}
+function removeItem(i){cart.splice(i,1);renderCart()}
+document.getElementById("discount").addEventListener("input",renderCart);
+
+function makeInvoiceNumber(){
+ const d=new Date();
+ const date=d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
+ return "IMF-"+date+"-"+Math.floor(100000+Math.random()*900000);
+}
+
+async function createInvoice(){
+ try{
+  const customerId=document.getElementById("customer").value;
+  if(!customerId){alert("কাস্টমার নির্বাচন করুন");return}
+  if(!cart.length){alert("কমপক্ষে একটি পণ্য যোগ করুন");return}
+  const subtotal=cart.reduce((s,x)=>s+x.total,0);
+  const discount=Math.max(0,Number(document.getElementById("discount").value)||0);
+  if(discount>subtotal){alert("ডিসকাউন্ট মোট দামের বেশি হতে পারবে না");return}
+  const total=subtotal-discount;
+  const paid=Number(document.getElementById("initialPaid").value)||0;
+  if(paid<0 || paid>total){alert("প্রাথমিক জমার পরিমাণ সঠিক নয়");return}
+
+  const customer=customers.find(c=>c.id===customerId);
+  const invoiceNumber=makeInvoiceNumber();
+  const status=paid===0?"Unpaid":paid<total?"Partial":"Paid";
+  msg("বিল তৈরি হচ্ছে...");
+  const {data:inv,error:invError}=await db.from("sales_invoices").insert({
+   invoice_number:invoiceNumber,
+   customer_id:customerId,
+   invoice_date:new Date().toISOString().slice(0,10),
+   subtotal:subtotal,
+   discount:discount,
+   other_charges:0,
+   total_amount:total,
+   paid_amount:paid,
+   payment_method:document.getElementById("initialMethod").value,
+   status:status,
+   notes:document.getElementById("invoiceNotes").value
+  }).select().single();
+  if(invError) throw invError;
+
+  const rows=cart.map(x=>({
+   invoice_id:inv.id,variant_id:x.variant_id,
+   quantity:x.quantity,unit_price:x.unit_price,total:x.total
+  }));
+  const {error:itemError}=await db.from("sales_items").insert(rows);
+  if(itemError) throw new Error("বিল তৈরি হয়েছে, কিন্তু পণ্যের তালিকা সংরক্ষণ হয়নি: "+itemError.message);
+
+  if(paid>0){
+   const {error:payError}=await db.from("customer_payments").insert({
+    customer_id:customerId,invoice_id:inv.id,amount:paid,
+    payment_date:new Date().toISOString().slice(0,10),
+    payment_method:document.getElementById("initialMethod").value,
+    notes:"প্রাথমিক বিল জমা"
+   });
+   if(payError) throw new Error("বিল ও পণ্য তৈরি হয়েছে, কিন্তু পেমেন্ট রেকর্ড হয়নি: "+payError.message);
+  }
+  alert("বিল তৈরি হয়েছে: "+invoiceNumber);
+  cart=[];
+  renderCart();
+  document.getElementById("initialPaid").value=0;
+  document.getElementById("discount").value=0;
+  document.getElementById("invoiceNotes").value="";
+  await loadInvoices();
+  msg("বিল সফলভাবে তৈরি হয়েছে।","success");
+ }catch(e){msg("বিল তৈরিতে সমস্যা: "+e.message,"error")}
+}
+
+async function savePayment(){
+ try{
+  const invoiceId=document.getElementById("paymentInvoice").value;
+  const amount=Number(document.getElementById("paymentAmount").value);
+  const inv=invoices.find(x=>x.id===invoiceId);
+  if(!inv){alert("ইনভয়েস নির্বাচন করুন");return}
+  if(!Number.isFinite(amount)||amount<=0){alert("সঠিক টাকার পরিমাণ দিন");return}
+  const due=Number(inv.total_amount)-Number(inv.paid_amount);
+  if(amount>due){alert("বাকি টাকার বেশি জমা নেওয়া যাবে না। বাকি: "+money(due));return}
+  const {error}=await db.from("customer_payments").insert({
+   customer_id:inv.customer_id,
+   invoice_id:inv.id,
+   amount:amount,
+   payment_date:new Date().toISOString().slice(0,10),
+   payment_method:document.getElementById("paymentMethod").value,
+   notes:document.getElementById("paymentNotes").value
+  });
+  if(error) throw error;
+  alert("পেমেন্ট রেকর্ড সংরক্ষিত হয়েছে");
+  document.getElementById("paymentAmount").value="";
+  document.getElementById("paymentNotes").value="";
+  await loadInvoices();
+  msg("পেমেন্ট সফলভাবে জমা হয়েছে।","success");
+ }catch(e){msg("পেমেন্টে সমস্যা: "+e.message,"error")}
+}
+
+async function loadInvoices(){
+ const {data,error}=await db.from("sales_invoices")
+  .select("id,invoice_number,customer_id,invoice_date,total_amount,paid_amount,status,customers(name,shop_name)")
+  .order("created_at",{ascending:false}).limit(100);
+ if(error) throw error;
+ invoices=data||[];
+ document.getElementById("invoiceList").innerHTML=invoices.map(x=>{
+  const due=Number(x.total_amount)-Number(x.paid_amount);
+  return `<tr><td>${esc(x.invoice_number)}</td><td>${esc(x.invoice_date||"")}</td>
+  <td>${esc(x.customers?.name||"")}</td><td>${money(x.total_amount)}</td>
+  <td>${money(x.paid_amount)}</td><td>${money(due)}</td>
+  <td class="status">${esc(x.status)}</td></tr>`;
+ }).join("");
+ document.getElementById("paymentInvoice").innerHTML=
+  '<option value="">ইনভয়েস নির্বাচন করুন</option>'+
+  invoices.filter(x=>Number(x.total_amount)>Number(x.paid_amount))
+  .map(x=>`<option value="${x.id}">${esc(x.invoice_number)} — বাকি ${money(Number(x.total_amount)-Number(x.paid_amount))}</option>`).join("");
+ const total=invoices.reduce((s,x)=>s+Number(x.total_amount),0);
+ const paid=invoices.reduce((s,x)=>s+Number(x.paid_amount),0);
+ document.getElementById("totalSales").textContent=money(total);
+ document.getElementById("totalPaid").textContent=money(paid);
+ document.getElementById("totalDue").textContent=money(total-paid);
+}
+
+start();
+</script>
+</body>
+</html>
