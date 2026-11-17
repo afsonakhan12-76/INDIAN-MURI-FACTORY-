@@ -253,8 +253,8 @@ document.getElementById("forgotBtn")
  btn.textContent="Sending...";
 
  try{
-  const resetURL = new URL("reset-password.html",location.href).href;
 
+  const resetURL = new URL("reset-password.html",location.href).href;
   const {error}=await db.auth.resetPasswordForEmail(email,{
    redirectTo:resetURL
   });
