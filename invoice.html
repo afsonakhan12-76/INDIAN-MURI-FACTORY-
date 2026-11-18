@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoice & Billing - INDIAN MURI FACTORY</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:18px;background:#f1f5f9;font-family:Arial,sans-serif;color:#1e293b}
+header{background:linear-gradient(110deg,#064e3b,#166534,#0284c7);color:white;padding:18px;border-radius:12px;margin-bottom:18px}
+header h2{margin:0 0 6px}header p{margin:0 0 12px}.panel{background:white;padding:20px;border-radius:12px;margin-bottom:18px;box-shadow:0 3px 12px #0001}
+input,select,textarea{width:100%;padding:11px;margin:6px 0 12px;border:1px solid #cbd5e1;border-radius:7px;font-size:15px}
+label{font-size:14px;font-weight:bold;color:#334155}button{border:0;border-radius:7px;padding:11px 15px;background:#15803d;color:white;font-size:14px;cursor:pointer;margin:3px}
+button:disabled{opacity:.5;cursor:not-allowed}.back{background:#475569}.blue{background:#2563eb}.orange{background:#ea580c}
+table{width:100%;border-collapse:collapse;min-width:700px}th,td{padding:10px;border:1px solid #e2e8f0;text-align:left}th{background:#dcfce7}
+.table-wrap{overflow-x:auto}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.total{text-align:right;line-height:2;margin-top:15px}.total strong{font-size:21px;color:#166534}
+#status{font-weight:bold;margin:10px 0;white-space:pre-wrap}.muted{color:#64748b;font-size:13px}#printArea{display:none}
+#logoutScreen{display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#064e3b,#166534,#0284c7);color:white;align-items:center;justify-content:center;flex-direction:column}
+#logoutScreen.show{display:flex}.loader{width:45px;height:45px;border:5px solid #ffffff55;border-top-color:white;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}@media(max-width:650px){body{padding:10px}.grid{grid-template-columns:1fr}.panel{padding:14px}}
+@media print{
+ @page{size:4in 6in portrait;margin:.12in}
+ html,body{width:100%;margin:0!important;padding:0!important;background:#fff!important;color:#000!important}
+ body>*:not(#printArea){display:none!important}
+ #printArea{display:block!important;width:100%!important;padding:0!important;margin:0!important;color:#000!important;background:#fff!important;font-family:Arial,sans-serif!important}
+ #printArea *{color:#000!important;background:#fff!important;box-shadow:none!important;text-shadow:none!important}
+ #printArea h1{font-size:15px!important;margin:0 0 3px!important}#printArea h3{font-size:10px!important;margin:4px 0!important}
+ #printArea p{font-size:8px!important;line-height:1.35!important;margin:5px 0!important}#printArea div{font-size:8px!important}
+ #printArea table{min-width:0!important;width:100%!important;font-size:7px!important;border-collapse:collapse!important}
+ #printArea th,#printArea td{border:1px solid #000!important;padding:3px 2px!important;overflow-wrap:anywhere}
+ #printArea hr{border:0;border-top:1px solid #000!important}
+ #driverQr img,#driverQr canvas{width:120px!important;height:120px!important}
+}
+</style>
+</head>
+<body style="display:none">
+<header>
+<h2>🏭 INDIAN MURI FACTORY</h2><p>Invoice & Billing Management</p>
+<button class="back" onclick="location.href='index.html'">← Dashboard</button>
+<button class="orange" id="logoutBtn" onclick="logout()">Logout</button>
+</header>
+
+<div class="panel">
+<h3>Create New Invoice</h3>
+<div class="grid">
+<div><label>Invoice Number</label><input id="invoiceNo" readonly></div>
+<div><label>Invoice Date</label><input id="invoiceDate" type="date"></div>
+</div>
+<h3>Customer Details</h3>
+<label>Select Customer *</label><select id="customer"><option value="">Loading customers...</option></select>
+<div class="grid">
+<div><label>Customer Name</label><input id="customerName" readonly></div>
+<div><label>Mobile Number</label><input id="customerPhone" readonly></div>
+<div><label>WhatsApp Number</label><input id="customerWhatsApp" readonly></div>
+<div><label>Customer Address</label><textarea id="customerAddress" rows="2" readonly></textarea></div>
+</div>
+<hr><h3>Bill Items</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Product / Bag Type</th><th>Quantity (Bags)</th><th>Rate (₹)</th><th>Amount (₹)</th><th>Action</th></tr></thead>
+<tbody id="itemsBody"></tbody></table></div>
+<button type="button" onclick="addLine()">+ Add Another Item</button><hr>
+<div class="grid">
+<div><label>Discount (₹)</label><input id="discount" type="number" min="0" step=".01" value="0"></div>
+<div><label>Other Charges (₹)</label><input id="charges" type="number" min="0" step=".01" value="0"></div>
+</div>
+<div class="total">
+<div>Total Bags: <b id="totalBags">0</b></div><div>Total Weight: <b id="totalWeight">0.000 KG</b></div>
+<div>Subtotal: ₹<b id="subtotal">0.00</b></div><div>Discount: ₹<b id="discountView">0.00</b></div>
+<div>Other Charges: ₹<b id="chargesView">0.00</b></div>
+<div><strong>Grand Total: ₹<span id="grandTotal">0.00</span></strong></div>
+</div><hr>
+<div class="grid">
+<div><label>Paid Amount (₹)</label><input id="paid" type="number" min="0" step=".01" value="0"></div>
+<div><label>Payment Method</label><select id="paymentMethod"><option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Cheque</option><option>Credit</option></select></div>
+</div>
+<hr><h3>🚚 Delivery Driver Details</h3>
+<div class="grid">
+<div><label>Driver Name *</label><input id="driverName" placeholder="Enter driver name" required></div>
+<div><label>Driver Mobile</label><input id="driverMobile" type="tel" placeholder="Driver mobile number"></div>
+<div><label>Driver Password *</label><input id="driverPassword" type="password" minlength="8" maxlength="128" placeholder="Minimum 8 characters" required></div>
+</div>
+<p class="muted">Driver scans the QR code and enters this password. Keep the password private.</p>
+<label>Notes</label><textarea id="notes" rows="2" placeholder="Optional notes"></textarea>
+<button id="saveBtn" onclick="saveInvoice()">Save Invoice & Create Delivery</button><div id="status"></div>
+</div>
+
+<div class="panel">
+<h3>Last Created Invoice</h3><div id="lastInvoice">No invoice created yet.</div>
+<button id="printBtn" class="blue" style="display:none" onclick="window.print()">🖨 PRINT</button>
+<button id="chatBtn" style="display:none;background:#15803d" onclick="openWhatsAppChat()">💬 WHATSAPP CHAT</button>
+<button id="whatsappBtn" style="display:none;background:#16a34a" onclick="sendWhatsApp()">📤 WHATSAPP SHARE (JPG)</button>
+</div>
+<div id="printArea"></div>
+<div id="logoutScreen"><div class="loader"></div><h2>Logging Out...</h2><p>Thank you for using INDIAN MURI FACTORY</p></div>
+
+<script>
+"use strict";
+if(!window.supabase||!window.SUPABASE_CONFIG?.URL||!window.SUPABASE_CONFIG?.KEY){
+ alert("Supabase config missing. Check config.js");throw new Error("Supabase configuration missing");
+}
+const db=window.supabase.createClient(window.SUPABASE_CONFIG.URL,window.SUPABASE_CONFIG.KEY);
+const FACTORY={name:"INDIAN MURI FACTORY",owner:"PRO - AFSAR ALI KHAN & SONE",
+ address:"JADABBATI, SANDHIPUR, GARHBETA, W. MEDINIPUR",
+ phones:["8001929268","8001929255","7363913253","6295968579"],email:"afsonakhan12@gmail.com"};
+let customers=[],products=[],lastBill=null;
+const $=id=>document.getElementById(id);
+function msg(t){$("status").textContent=t}
+function today(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function makeInvoiceNo(){return "IMF-"+today().replaceAll("-","")+"-"+Date.now().toString().slice(-6)}
+async function checkLogin(){const {data,error}=await db.auth.getSession();if(error||!data.session){location.replace("login.html");return false}$("body");document.body.style.display="block";return true}
+async function start(){if(!await checkLogin())return;$("invoiceNo").value=makeInvoiceNo();$("invoiceDate").value=today();await Promise.all([loadCustomers(),loadProducts()]);addLine()}
+start();
+async function logout(){const b=$("logoutBtn");b.disabled=true;$("logoutScreen").classList.add("show");const {error}=await db.auth.signOut();if(error){$("logoutScreen").classList.remove("show");b.disabled=false;alert(error.message);return}location.replace("login.html")}
+function customerFields(c){return {name:c.name??c.customer_name??c.full_name??"",phone:c.phone??c.mobile??c.mobile_number??"",whatsapp:c.whatsapp??c.whatsapp_number??c.phone??c.mobile??"",address:c.address??c.full_address??""}}
+async function loadCustomers(){
+ const {data,error}=await db.from("customers").select("*").order("id");
+ if(error){msg("Customer Error: "+error.message);return}
+ customers=data||[];$("customer").innerHTML='<option value="">Select Customer</option>';
+ customers.forEach(c=>{const f=customerFields(c);$("customer").add(new Option(f.name||("Customer #"+c.id),String(c.id)))});
+}
+async function loadProducts(){
+ const {data,error}=await db.from("finished_products").select("id,product_name,product_type,weight_kg,is_active").eq("is_active",true).order("product_name");
+ if(error){msg("Product Error: "+error.message);return}
+ products=(data||[]).map(p=>({id:p.id,name:p.product_name,type:p.product_type||p.product_name,weight:Number(p.weight_kg||0)}));
+}
+$("customer").addEventListener("change",()=>{
+ const c=customers.find(x=>String(x.id)===$("customer").value),f=c?customerFields(c):{name:"",phone:"",whatsapp:"",address:""};
+ $("customerName").value=f.name;$("customerPhone").value=f.phone;$("customerWhatsApp").value=f.whatsapp;$("customerAddress").value=f.address;
+});
+function addLine(){
+ const tr=document.createElement("tr"),pc=document.createElement("td"),sel=document.createElement("select");
+ sel.style.minWidth="190px";sel.add(new Option("Select Product / Bag Type",""));
+ products.forEach(p=>sel.add(new Option(`${p.name} - ${p.type} (${p.weight} KG)`,String(p.id))));pc.appendChild(sel);
+ const qc=document.createElement("td"),qty=document.createElement("input");qty.type="number";qty.min="1";qty.step="1";qty.value="1";qty.style.width="90px";qc.appendChild(qty);
+ const rc=document.createElement("td"),rate=document.createElement("input");rate.type="number";rate.min="0";rate.step=".01";rate.value="0";rate.style.width="110px";rc.appendChild(rate);
+ const ac=document.createElement("td");ac.textContent="₹0.00";
+ const xc=document.createElement("td"),del=document.createElement("button");del.type="button";del.textContent="Remove";del.style.background="#dc2626";del.onclick=()=>{tr.remove();calculate()};xc.appendChild(del);
+ tr.append(pc,qc,rc,ac,xc);$("itemsBody").appendChild(tr);
+ sel.onchange=()=>{rate.value="0";calculate()};qty.oninput=calculate;rate.oninput=calculate;calculate();
+}
+function getBill(){
+ let subtotal=0,bags=0,weight=0;const items=[],rows=[...document.querySelectorAll("#itemsBody tr")];
+ rows.forEach(tr=>{
+  const p=products.find(x=>String(x.id)===tr.querySelector("select").value),ins=tr.querySelectorAll("input");
+  const quantity=Number(ins[0].value||0),unit_price=Number(ins[1].value||0),total=quantity*unit_price;
+  if(p&&quantity>0&&Number.isInteger(quantity)&&Number.isFinite(unit_price)&&unit_price>=0){
+   items.push({product:p,quantity,unit_price,total});subtotal+=total;bags+=quantity;weight+=quantity*p.weight;
+  }
+  tr.children[3].textContent="₹"+total.toFixed(2);
+ });
+ const discount=Number($("discount").value||0),charges=Number($("charges").value||0);
+ return {items,subtotal,discount,charges,total:Math.max(0,subtotal-discount+charges),bags,weight};
+}
+function calculate(){const b=getBill();$("totalBags").textContent=b.bags;$("totalWeight").textContent=b.weight.toFixed(3)+" KG";$("subtotal").textContent=b.subtotal.toFixed(2);$("discountView").textContent=b.discount.toFixed(2);$("chargesView").textContent=b.charges.toFixed(2);$("grandTotal").textContent=b.total.toFixed(2)}
+$("discount").addEventListener("input",calculate);$("charges").addEventListener("input",calculate);
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+
+async function saveInvoice(){
+ const customer=customers.find(c=>String(c.id)===$("customer").value),b=getBill();
+ const paid=Number($("paid").value||0),driverName=$("driverName").value.trim(),driverMobile=$("driverMobile").value.trim(),driverPassword=$("driverPassword").value;
+ if(!customer){msg("Please select a customer.");return}
+ if(!b.items.length){msg("Add at least one valid product.");return}
+ if(b.items.length!==document.querySelectorAll("#itemsBody tr").length){msg("Select a product in every row or remove empty rows.");return}
+ if(driverName.length<2){msg("Enter a valid driver name.");return}
+ if(driverPassword.length<8||driverPassword.length>128){msg("Driver password must be 8 to 128 characters.");return}
+ if(!Number.isFinite(paid)||paid<0||paid>b.total||b.discount<0||b.charges<0){msg("Check discount, charges and paid amount.");return}
+ const date=$("invoiceDate").value;if(!date){msg("Select invoice date.");return}
+ const btn=$("saveBtn");btn.disabled=true;msg("Saving invoice, delivery and driver QR...");
+ try{
+  const invoiceNo=$("invoiceNo").value;
+  const p_items=b.items.map(x=>({product_id:x.product.id,quantity:x.quantity,unit_price:x.unit_price,line_total:x.total}));
+  const {data,error}=await db.rpc("create_factory_invoice_with_qr",{
+   p_invoice_number:invoiceNo,p_customer_id:customer.id,p_invoice_date:date,
+   p_subtotal:b.subtotal,p_discount:b.discount,p_other_charges:b.charges,
+   p_total:b.total,p_paid:paid,p_payment_method:$("paymentMethod").value,
+   p_notes:$("notes").value.trim(),p_items,
+   p_driver_name:driverName,p_driver_mobile:driverMobile,p_driver_password:driverPassword
+  });
+  if(error)throw error;
+  if(!data?.success||!data.token)throw new Error("The server did not return a Driver QR token.");
+  const driverURL=new URL("deliveries.html",location.href);driverURL.searchParams.set("token",data.token);
+  const invoice={id:data.sale_id,invoice_number:invoiceNo,invoice_date:date,subtotal:b.subtotal,discount:b.discount,other_charges:b.charges,total_amount:b.total,paid_amount:paid,payment_method:$("paymentMethod").value,status:paid>=b.total?"Paid":paid>0?"Partial":"Unpaid",notes:$("notes").value.trim()};
+  lastBill={invoice,customer:{...customer,...customerFields(customer)},items:b.items,paid,due:b.total-paid,bags:b.bags,weight:b.weight,driverName,driverMobile,deliveryId:data.delivery_id,driverURL:driverURL.href};
+  showBill();["printBtn","chatBtn","whatsappBtn"].forEach(id=>$(id).style.display="inline-block");
+  $("lastInvoice").textContent=`Invoice ${invoiceNo} saved. Delivery created and Driver QR generated.`;
+  msg("Success! Invoice, delivery and Driver QR created.");
+  $("invoiceNo").value=makeInvoiceNo();$("paid").value="0";$("notes").value="";$("driverName").value="";$("driverMobile").value="";$("driverPassword").value="";
+ }catch(e){msg("Save Error: "+(e.message||String(e)))}
+ finally{btn.disabled=false}
+}
+function showBill(){
+ const x=lastBill,i=x.invoice,c=x.customer;
+ const rows=x.items.map(it=>`<tr><td>${esc(it.product.name)} - ${esc(it.product.type)}</td><td>${it.product.weight} KG</td><td>${it.quantity}</td><td>₹${it.unit_price.toFixed(2)}</td><td>₹${it.total.toFixed(2)}</td></tr>`).join("");
+ $("printArea").innerHTML=`
+ <div style="font-family:Arial;background:white;color:black;width:100%">
+ <div style="text-align:center;border-bottom:3px solid #000;padding-bottom:10px"><h1>${esc(FACTORY.name)}</h1><h3>SALES INVOICE</h3></div>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0">
+ <div style="border:1px solid #000;padding:10px"><h3>FACTORY DETAILS</h3><b>${esc(FACTORY.owner)}</b><br>${esc(FACTORY.address)}<br>Mobile: ${FACTORY.phones.map(esc).join(" / ")}<br>Email: ${esc(FACTORY.email)}</div>
+ <div style="border:1px solid #000;padding:10px"><h3>CUSTOMER DETAILS</h3><b>${esc(c.name)}</b><br>Address: ${esc(c.address)}<br>Mobile: ${esc(c.phone)}<br>WhatsApp: ${esc(c.whatsapp)}</div></div>
+ <p><b>Invoice No:</b> ${esc(i.invoice_number)} &nbsp; <b>Date:</b> ${esc(i.invoice_date)}</p>
+ <table style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr><th>Product / Bag Type</th><th>Weight</th><th>Quantity</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${rows}</tbody></table>
+ <div style="text-align:right;line-height:1.9;margin-top:12px">Total Bags: ${x.bags}<br>Total Weight: ${x.weight.toFixed(3)} KG<br>Subtotal: ₹${i.subtotal.toFixed(2)}<br>Discount: ₹${i.discount.toFixed(2)}<br>Other Charges: ₹${i.other_charges.toFixed(2)}<br><b style="font-size:18px">Grand Total: ₹${i.total_amount.toFixed(2)}</b><br>Paid Amount: ₹${x.paid.toFixed(2)}<br><b>Due Amount: ₹${x.due.toFixed(2)}</b><br>Payment Method: ${esc(i.payment_method)} (${esc(i.status)})</div>
+ <p><b>Notes:</b> ${esc(i.notes||"-")}</p>
+ <div style="display:flex;justify-content:space-between;margin-top:30px"><span>Customer Signature</span><span>Authorized Signature</span></div>
+ <hr style="margin-top:18px">
+ <div style="text-align:center;margin:15px auto;padding:10px;border:2px solid #000;page-break-inside:avoid">
+ <h3>DELIVERY DRIVER QR CODE</h3><p>Scan QR code and enter your driver password</p>
+ <div id="driverQr" style="display:flex;justify-content:center;margin:10px auto"></div>
+ <p><b>Driver:</b> ${esc(x.driverName)}</p><p><b>Delivery ID:</b> ${esc(x.deliveryId)}</p><p>INDIAN MURI FACTORY</p></div>
+ <p style="text-align:center">Thank you for your business!</p></div>`;
+ const qr=$("driverQr");
+ if(typeof QRCode==="function"){qr.innerHTML="";new QRCode(qr,{text:x.driverURL,width:170,height:170,correctLevel:QRCode.CorrectLevel.H})}
+ else qr.textContent="QR library failed to load. Refresh the page.";
+}
+function getWhatsAppNumber(){
+ if(!lastBill)return "";let n=String(lastBill.customer.whatsapp||lastBill.customer.phone||"").replace(/\D/g,"");
+ if(n.length===10)n="91"+n;return n.length===12&&n.startsWith("91")?n:"";
+}
+function invoiceWhatsAppText(){
+ const x=lastBill,i=x.invoice;return ["🏭 "+FACTORY.name,"Sales Invoice","Invoice No: "+i.invoice_number,"Date: "+i.invoice_date,"Customer: "+(x.customer.name||""),"Total Bags: "+x.bags,"Total Weight: "+x.weight.toFixed(3)+" KG","Grand Total: ₹"+i.total_amount.toFixed(2),"Paid: ₹"+x.paid.toFixed(2),"Due: ₹"+x.due.toFixed(2),"Thank you for your business!"].join("\n");
+}
+function openWhatsAppChat(){
+ if(!lastBill){msg("Save an invoice first.");return}const n=getWhatsAppNumber();if(!n){msg("Customer WhatsApp number is missing or invalid.");return}
+ window.open("https://wa.me/"+n+"?text="+encodeURIComponent(invoiceWhatsAppText()),"_blank","noopener");
+}
+async function sendWhatsApp(){
+ if(!lastBill){msg("Save an invoice first.");return}const n=getWhatsAppNumber();if(!n){msg("Customer WhatsApp number is missing or invalid.");return}
+ if(typeof html2canvas!=="function"){msg("Image library failed to load.");return}
+ const btn=$("whatsappBtn"),old=btn.textContent,area=$("printArea");
+ const prev={display:area.style.display,position:area.style.position,left:area.style.left,top:area.style.top,width:area.style.width,zIndex:area.style.zIndex};
+ btn.disabled=true;btn.textContent="Preparing JPG...";msg("Preparing invoice image...");
+ try{
+  area.style.display="block";area.style.position="absolute";area.style.left="-10000px";area.style.top="0";area.style.width="800px";area.style.zIndex="-1";
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  const canvas=await html2canvas(area,{scale:2,backgroundColor:"#fff",useCORS:true,logging:false});
+  const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error("JPG creation failed")),"image/jpeg",.95));
+  const file=new File([blob],lastBill.invoice.invoice_number+".jpg",{type:"image/jpeg"});
+  const share={files:[file],title:"INDIAN MURI FACTORY Invoice",text:invoiceWhatsAppText()};
+  if(navigator.share&&navigator.canShare&&navigator.canShare(share)){await navigator.share(share);msg("Invoice image shared or ready to share.")}
+  else{
+   const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+   window.open("https://wa.me/"+n+"?text="+encodeURIComponent(invoiceWhatsAppText()),"_blank","noopener");
+   msg("JPG downloaded. Attach it in the WhatsApp chat.");
+  }
+ }catch(e){msg(e.name==="AbortError"?"Sharing cancelled.":"Share error: "+e.message)}
+ finally{Object.assign(area.style,prev);btn.disabled=false;btn.textContent=old}
+}
+window.addEventListener("error",e=>{if($("status")&&e.message)msg("Page Error: "+e.message)});
+</script>
+</body>
+</html>
