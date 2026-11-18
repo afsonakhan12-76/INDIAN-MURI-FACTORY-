@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Indian Muri Factory - Driver Portal</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+
+<style>
+*{box-sizing:border-box}
+body{
+    margin:0;
+    font-family:Arial,sans-serif;
+    background:linear-gradient(135deg,#102b24,#173f34,#071c18);
+    color:#fff;
+    min-height:100vh;
+}
+header{
+    background:#102e25;
+    padding:20px;
+    text-align:center;
+    border-bottom:1px solid #ffffff25;
+}
+header h2{margin:0;color:#a7f3c5}
+header p{margin:7px 0 0;color:#c8ddd3;font-size:13px}
+.container{max-width:850px;margin:20px auto;padding:12px}
+.card{
+    background:#ffffff12;
+    border:1px solid #ffffff25;
+    border-radius:16px;
+    padding:20px;
+    margin-bottom:17px;
+    box-shadow:0 8px 25px #0003;
+}
+h3{color:#a7f3c5;margin-top:0}
+input,select,textarea{
+    width:100%;
+    padding:13px;
+    margin:7px 0 13px;
+    border-radius:9px;
+    border:1px solid #ffffff35;
+    background:#102b24;
+    color:white;
+    font-size:15px;
+}
+input::placeholder,textarea::placeholder{color:#b7c9c0}
+label{font-size:13px;color:#d6e8df}
+button{
+    width:100%;
+    padding:14px;
+    border:0;
+    border-radius:9px;
+    background:#20b66b;
+    color:#062318;
+    font-weight:bold;
+    font-size:15px;
+    cursor:pointer;
+    margin-top:7px;
+}
+button:disabled{opacity:.5}
+.secondary{background:#d5a83d;color:#241900}
+.danger{background:#bd4747;color:white}
+.hidden{display:none!important}
+.info{
+    background:#ffffff12;
+    border-radius:10px;
+    padding:12px;
+    margin:8px 0;
+    line-height:1.7;
+    overflow-wrap:anywhere;
+}
+.item{
+    padding:12px;
+    border-bottom:1px solid #ffffff25;
+}
+.item:last-child{border:0}
+.small{font-size:12px;color:#c3d7cc}
+.status{color:#a7f3c5;font-weight:bold}
+.message{
+    padding:12px;
+    margin:10px 0;
+    border-radius:8px;
+    display:none;
+    overflow-wrap:anywhere;
+}
+.success{background:#145c3a}
+.error{background:#772c2c}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{
+    background:#ffffff12;
+    border-radius:10px;
+    padding:12px;
+}
+.stat strong{display:block;font-size:21px;color:#a7f3c5}
+@media(max-width:550px){
+    .grid{grid-template-columns:1fr}
+    .container{padding:9px}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h2>INDIAN MURI FACTORY</h2>
+    <p>Driver Delivery Portal</p>
+</header>
+
+<div class="container">
+
+    <div id="message" class="message"></div>
+
+    <!-- LOGIN -->
+    <section id="loginCard" class="card">
+        <h3>Driver Login</h3>
+        <label>Driver Password</label>
+        <input type="password" id="password"
+               placeholder="Enter your driver password">
+        <button id="loginBtn" onclick="driverLogin()">Login</button>
+        <p class="small">Use the unique delivery link and password provided by the factory.</p>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="hidden">
+
+        <div class="card">
+            <h3>Delivery Information</h3>
+            <div id="deliveryInfo" class="info"></div>
+            <button class="secondary" onclick="logout()">Logout</button>
+        </div>
+
+        <div class="card">
+            <h3>Customer Information</h3>
+            <div id="customerInfo" class="info"></div>
+        </div>
+
+        <div class="card">
+            <h3>Delivery Items</h3>
+            <div id="itemsList"></div>
+            <div class="info">
+                Total Bags Sent:
+                <strong id="totalSent">0</strong>
+            </div>
+        </div>
+
+        <!-- DELIVERY REPORT -->
+        <div class="card">
+            <h3>Submit Delivery Report</h3>
+
+            <label>Delivered Bags</label>
+            <input type="number" id="delivered" min="0" value="0">
+
+            <label>Undelivered Bags</label>
+            <input type="number" id="undelivered" min="0" value="0">
+
+            <label>Damaged Bags</label>
+            <input type="number" id="damaged" min="0" value="0">
+
+            <label>Damage Reason</label>
+            <textarea id="damageReason" placeholder="Enter damage reason if any"></textarea>
+
+            <h3>Empty Bag Information</h3>
+
+            <label>White Empty Bags Returned</label>
+            <input type="number" id="whiteReturned" min="0" value="0">
+
+            <label>Color Empty Bags Returned</label>
+            <input type="number" id="colorReturned" min="0" value="0">
+
+            <label>White Empty Bags Pending</label>
+            <input type="number" id="whitePending" min="0" value="0">
+
+            <label>Color Empty Bags Pending</label>
+            <input type="number" id="colorPending" min="0" value="0">
+
+            <label>Driver Notes</label>
+            <textarea id="driverNotes" placeholder="Additional delivery information"></textarea>
+
+            <div class="info">
+                <div>Total Bags Sent: <strong id="reportTotal">0</strong></div>
+                <div>Reported Bags: <strong id="reportSum">0</strong></div>
+                <div id="reportCheck" class="status">Enter delivery quantities</div>
+            </div>
+
+            <button id="reportBtn" onclick="submitReport()">
+                Submit Delivery Report
+            </button>
+        </div>
+
+        <!-- PAYMENT -->
+        <div class="card">
+            <h3>Payment Collection</h3>
+
+            <label>Cash Collected (₹)</label>
+            <input type="number" id="cashAmount" min="0" step="0.01" value="0">
+
+            <label>Online Collected (₹)</label>
+            <input type="number" id="onlineAmount" min="0" step="0.01" value="0">
+
+            <label>Online Payment Method</label>
+            <select id="onlineMethod">
+                <option value="">Select Method</option>
+                <option value="upi">UPI</option>
+                <option value="bank">Bank Transfer</option>
+            </select>
+
+            <label>Transaction Reference / UTR</label>
+            <input type="text" id="transactionReference"
+                   placeholder="Enter transaction ID">
+
+            <label>Payment Proof URL (Optional)</label>
+            <input type="url" id="paymentProof"
+                   placeholder="Paste payment proof URL">
+
+            <label>Payment Notes</label>
+            <textarea id="paymentNotes"
+                      placeholder="Additional payment details"></textarea>
+
+            <button id="paymentBtn" onclick="submitPayment()">
+                Submit Payment Collection
+            </button>
+
+            <p class="small">
+                Payment remains pending until verified by factory admin.
+            </p>
+        </div>
+
+    </section>
+
+</div>
+
+<script>
+let supabaseClient = null;
+let driverToken = new URLSearchParams(location.search).get("token");
+let driverPassword = "";
+let deliveryData = null;
+let totalBags = 0;
+
+function showMessage(text, type="success"){
+    const box = document.getElementById("message");
+    box.textContent = text;
+    box.className = "message " + type;
+    box.style.display = "block";
+    box.scrollIntoView({behavior:"smooth",block:"center"});
+}
+
+function safe(value){
+    return String(value ?? "").replace(/[&<>"']/g, c => ({
+        "&":"&amp;",
+        "<":"&lt;",
+        ">":"&gt;",
+        '"':"&quot;",
+        "'":"&#39;"
+    }[c]));
+}
+
+function numberValue(id){
+    const n = Number(document.getElementById(id).value);
+    return Number.isFinite(n) && n >= 0 ? n : -1;
+}
+
+function init(){
+    if(!window.AFSONA_CONFIG ||
+       !window.AFSONA_CONFIG.SUPABASE_URL ||
+       !window.AFSONA_CONFIG.SUPABASE_ANON_KEY){
+        showMessage("Supabase configuration not found. Check config.js.", "error");
+        document.getElementById("loginBtn").disabled = true;
+        return;
+    }
+
+    if(!driverToken || driverToken.length < 32){
+        showMessage("Invalid driver link. Please contact the factory.", "error");
+        document.getElementById("loginBtn").disabled = true;
+        return;
+    }
+
+    supabaseClient = window.supabase.createClient(
+        window.AFSONA_CONFIG.SUPABASE_URL,
+        window.AFSONA_CONFIG.SUPABASE_ANON_KEY
+    );
+}
+
+async function driverLogin(){
+    const password = document.getElementById("password").value;
+
+    if(!password){
+        showMessage("Please enter your password.", "error");
+        return;
+    }
+
+    const btn = document.getElementById("loginBtn");
+    btn.disabled = true;
+    btn.textContent = "Checking...";
+
+    try{
+        const {data:access, error:accessError} =
+            await supabaseClient.rpc("verify_driver_delivery_access",{
+                p_token:driverToken,
+                p_password:password
+            });
+
+        if(accessError) throw accessError;
+
+        const {data:details, error:detailsError} =
+            await supabaseClient.rpc("get_driver_delivery_details",{
+                p_token:driverToken,
+                p_password:password
+            });
+
+        if(detailsError) throw detailsError;
+
+        if(!details || !details.success){
+            throw new Error("Unable to load delivery details.");
+        }
+
+        driverPassword = password;
+        deliveryData = details;
+
+        renderDashboard();
+
+        document.getElementById("loginCard").classList.add("hidden");
+        document.getElementById("dashboard").classList.remove("hidden");
+
+        showMessage("Login successful. Welcome, " + details.driver_name + "!");
+
+    }catch(error){
+        showMessage(error.message || "Login failed.", "error");
+    }finally{
+        btn.disabled = false;
+        btn.textContent = "Login";
+    }
+}
+
+function renderDashboard(){
+    const c = deliveryData.customer || {};
+    const items = deliveryData.items || [];
+
+    document.getElementById("deliveryInfo").innerHTML = `
+        <strong>Delivery Number:</strong> ${safe(deliveryData.delivery_number)}<br>
+        <strong>Delivery Date:</strong> ${safe(deliveryData.delivery_date)}<br>
+        <strong>Driver:</strong> ${safe(deliveryData.driver_name)}<br>
+        <strong>Status:</strong> ${safe(deliveryData.delivery_status)}
+    `;
+
+    document.getElementById("customerInfo").innerHTML = `
+        <strong>Name:</strong> ${safe(c.name)}<br>
+        <strong>Shop:</strong> ${safe(c.shop_name)}<br>
+        <strong>Mobile:</strong> ${safe(c.mobile)}<br>
+        <strong>WhatsApp:</strong> ${safe(c.whatsapp)}<br>
+        <strong>Village:</strong> ${safe(c.village)}<br>
+        <strong>Post Office:</strong> ${safe(c.post_office)}<br>
+        <strong>Police Station:</strong> ${safe(c.police_station)}<br>
+        <strong>District:</strong> ${safe(c.district)}<br>
+        <strong>PIN:</strong> ${safe(c.pin_code)}<br>
+        <strong>Address:</strong> ${safe(c.full_address)}
+    `;
+
+    totalBags = 0;
+
+    document.getElementById("itemsList").innerHTML = items.map(item=>{
+        const qty = Number(item.quantity_sent || 0);
+        totalBags += qty;
+
+        return `
+        <div class="item">
+            <strong>${safe(item.product_name)}</strong><br>
+            Type: ${safe(item.product_type)}<br>
+            Weight: ${safe(item.weight_kg)} KG<br>
+            Quantity Sent: <strong>${qty} Bags</strong>
+        </div>`;
+    }).join("") || "<p>No items found.</p>";
+
+    document.getElementById("totalSent").textContent = totalBags;
+    document.getElementById("reportTotal").textContent = totalBags;
+
+    ["delivered","undelivered","damaged"].forEach(id=>{
+        document.getElementById(id).addEventListener("input", updateReportTotal);
+    });
+
+    updateReportTotal();
+}
+
+function updateReportTotal(){
+    const a = numberValue("delivered");
+    const b = numberValue("undelivered");
+    const c = numberValue("damaged");
+
+    const sum = a + b + c;
+
+    document.getElementById("reportSum").textContent =
+        a < 0 || b < 0 || c < 0 ? "Invalid" : sum;
+
+    const valid = a >= 0 && b >= 0 && c >= 0 && sum === totalBags;
+
+    document.getElementById("reportCheck").textContent = valid
+        ? "Quantity matched. Ready to submit."
+        : "Delivered + Undelivered + Damaged must equal " + totalBags;
+
+    document.getElementById("reportCheck").style.color =
+        valid ? "#a7f3c5" : "#ffb2a8";
+
+    document.getElementById("reportBtn").disabled = !valid;
+}
+
+async function submitReport(){
+    const delivered = numberValue("delivered");
+    const undelivered = numberValue("undelivered");
+    const damaged = numberValue("damaged");
+
+    if(delivered < 0 || undelivered < 0 || damaged < 0 ||
+       delivered + undelivered + damaged !== totalBags){
+        showMessage("Delivery quantities do not match total bags sent.", "error");
+        return;
+    }
+
+    const values = [
+        "whiteReturned","colorReturned","whitePending","colorPending"
+    ].map(numberValue);
+
+    if(values.some(v=>v < 0 || !Number.isInteger(v))){
+        showMessage("Enter valid whole numbers for empty bags.", "error");
+        return;
+    }
+
+    if(!Number.isInteger(delivered) ||
+       !Number.isInteger(undelivered) ||
+       !Number.isInteger(damaged)){
+        showMessage("Bag quantities must be whole numbers.", "error");
+        return;
+    }
+
+    const btn = document.getElementById("reportBtn");
+    btn.disabled = true;
+    btn.textContent = "Submitting...";
+
+    try{
+        const {data,error} = await supabaseClient.rpc(
+            "submit_driver_delivery_report",{
+                p_token:driverToken,
+                p_password:driverPassword,
+                p_delivered:delivered,
+                p_undelivered:undelivered,
+                p_damaged:damaged,
+                p_white_empty_returned:values[0],
+                p_color_empty_returned:values[1],
+                p_white_empty_pending:values[2],
+                p_color_empty_pending:values[3],
+                p_damage_reason:document.getElementById("damageReason").value,
+                p_driver_notes:document.getElementById("driverNotes").value
+            }
+        );
+
+        if(error) throw error;
+
+        showMessage("Delivery report submitted. Waiting for admin approval.");
+
+    }catch(error){
+        showMessage(error.message || "Report submission failed.", "error");
+    }finally{
+        btn.disabled = false;
+        btn.textContent = "Submit Delivery Report";
+        updateReportTotal();
+    }
+}
+
+async function submitPayment(){
+    const cash = numberValue("cashAmount");
+    const online = numberValue("onlineAmount");
+
+    if(cash < 0 || online < 0 || cash + online <= 0){
+        showMessage("Enter a valid cash or online collection amount.", "error");
+        return;
+    }
+
+    const method = document.getElementById("onlineMethod").value;
+    const reference = document.getElementById("transactionReference").value.trim();
+
+    if(online > 0 && !method){
+        showMessage("Select online payment method.", "error");
+        return;
+    }
+
+    if(online > 0 && reference.length < 3){
+        showMessage("Enter the online transaction reference.", "error");
+        return;
+    }
+
+    const btn = document.getElementById("paymentBtn");
+    btn.disabled = true;
+    btn.textContent = "Submitting...";
+
+    try{
+        const {data,error} = await supabaseClient.rpc(
+            "submit_driver_payment_collection",{
+                p_token:driverToken,
+                p_password:driverPassword,
+                p_cash_amount:cash,
+                p_online_amount:online,
+                p_online_method:method || null,
+                p_transaction_reference:reference || null,
+                p_payment_proof_url:
+                    document.getElementById("paymentProof").value.trim() || null,
+                p_notes:document.getElementById("paymentNotes").value
+            }
+        );
+
+        if(error) throw error;
+
+        showMessage("Payment collection submitted. Waiting for admin verification.");
+
+        document.getElementById("cashAmount").value = "0";
+        document.getElementById("onlineAmount").value = "0";
+        document.getElementById("transactionReference").value = "";
+        document.getElementById("paymentProof").value = "";
+        document.getElementById("paymentNotes").value = "";
+
+    }catch(error){
+        showMessage(error.message || "Payment submission failed.", "error");
+    }finally{
+        btn.disabled = false;
+        btn.textContent = "Submit Payment Collection";
+    }
+}
+
+function logout(){
+    driverPassword = "";
+    deliveryData = null;
+    document.getElementById("password").value = "";
+    document.getElementById("dashboard").classList.add("hidden");
+    document.getElementById("loginCard").classList.remove("hidden");
+    showMessage("You have logged out.");
+}
+
+init();
+</script>
+
+</body>
+</html>
