@@ -1,0 +1,333 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Driver Management - Indian Muri Factory</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;padding:15px;font-family:Arial,sans-serif;
+ background:linear-gradient(135deg,#102b24,#174536);
+ color:white;min-height:100vh
+}
+header{text-align:center;padding:18px}
+header h2{color:#a7f3c5;margin:0}
+.container{max-width:850px;margin:auto}
+.card{
+ background:#ffffff12;border:1px solid #ffffff25;
+ border-radius:15px;padding:20px;margin-bottom:16px
+}
+h3{color:#a7f3c5;margin-top:0}
+input,select{
+ width:100%;padding:13px;margin:7px 0 15px;
+ border-radius:8px;border:1px solid #ffffff35;
+ background:#102b24;color:white;font-size:15px
+}
+label{font-size:13px;color:#d7e8df}
+button{
+ width:100%;padding:14px;border:0;border-radius:9px;
+ background:#20b66b;color:#062318;font-weight:bold;
+ font-size:15px;margin-top:7px;cursor:pointer
+}
+.secondary{background:#d8aa40;color:#241900}
+.info{background:#ffffff12;padding:12px;border-radius:9px;
+ margin:10px 0;overflow-wrap:anywhere;line-height:1.7}
+.message{display:none;padding:12px;border-radius:8px;margin:10px 0}
+.success{background:#145c3a}
+.error{background:#772c2c}
+.small{font-size:12px;color:#c5d9cf}
+.delivery{
+ padding:13px;border-bottom:1px solid #ffffff25;
+ line-height:1.7
+}
+.hidden{display:none}
+</style>
+</head>
+<body>
+
+<header>
+<h2>INDIAN MURI FACTORY</h2>
+<p>Admin Driver Management</p>
+</header>
+
+<div class="container">
+
+<div id="message" class="message"></div>
+
+<div class="card">
+<h3>Admin Login</h3>
+<label>Email</label>
+<input type="email" id="email" placeholder="Admin email">
+<label>Password</label>
+<input type="password" id="adminPassword" placeholder="Admin password">
+<button onclick="adminLogin()">Login</button>
+<p class="small">Use your existing factory admin account.</p>
+</div>
+
+<div id="adminArea" class="hidden">
+
+<div class="card">
+<h3>Assign Driver to Delivery</h3>
+
+<label>Select Delivery</label>
+<select id="deliverySelect">
+<option value="">Loading deliveries...</option>
+</select>
+
+<label>Driver Name</label>
+<input id="driverName" placeholder="Enter driver full name">
+
+<label>Driver Mobile</label>
+<input id="driverMobile" type="tel" placeholder="Enter mobile number">
+
+<label>Create Driver Password</label>
+<input id="driverPassword" type="password"
+       minlength="8" maxlength="128"
+       placeholder="Minimum 8 characters">
+
+<button id="createBtn" onclick="createDriverLink()">
+Create Driver Link
+</button>
+</div>
+
+<div id="linkCard" class="card hidden">
+<h3>Driver Link Created</h3>
+<div class="info">
+<strong>Driver:</strong>
+<span id="createdDriver"></span>
+</div>
+<label>Unique Driver Link</label>
+<input id="driverLink" readonly>
+<button onclick="copyDriverLink()">Copy Driver Link</button>
+<button class="secondary" onclick="shareDriverLink()">Share on WhatsApp</button>
+<p class="small">
+Send the link and password separately to the driver.
+The raw token is shown only when the link is created.
+</p>
+</div>
+
+<div class="card">
+<h3>Delivery List</h3>
+<button class="secondary" onclick="loadDeliveries()">Refresh Deliveries</button>
+<div id="deliveryList">Loading...</div>
+</div>
+
+<button class="secondary" onclick="adminLogout()">Logout</button>
+</div>
+</div>
+
+<script>
+let client;
+let adminSession = false;
+let latestDriverLink = "";
+
+function showMessage(text,type="success"){
+ const box=document.getElementById("message");
+ box.textContent=text;
+ box.className="message "+type;
+ box.style.display="block";
+}
+
+function safe(value){
+ return String(value??"").replace(/[&<>"']/g,c=>({
+ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+ }[c]));
+}
+
+function init(){
+ if(!window.AFSONA_CONFIG ||
+    !window.AFSONA_CONFIG.SUPABASE_URL ||
+    !window.AFSONA_CONFIG.SUPABASE_ANON_KEY){
+  showMessage("Supabase config.js not found.","error");
+  return;
+ }
+
+ client=window.supabase.createClient(
+  window.AFSONA_CONFIG.SUPABASE_URL,
+  window.AFSONA_CONFIG.SUPABASE_ANON_KEY
+ );
+
+ client.auth.onAuthStateChange((event,session)=>{
+  if(session){
+   adminSession=true;
+   document.getElementById("adminArea").classList.remove("hidden");
+   loadDeliveries();
+  }else{
+   adminSession=false;
+   document.getElementById("adminArea").classList.add("hidden");
+  }
+ });
+}
+
+async function adminLogin(){
+ const email=document.getElementById("email").value.trim();
+ const password=document.getElementById("adminPassword").value;
+
+ if(!email||!password){
+  showMessage("Enter admin email and password.","error");
+  return;
+ }
+
+ try{
+  const {data,error}=await client.auth.signInWithPassword({
+   email,password
+  });
+  if(error)throw error;
+
+  const {data:profile,error:profileError}=await client
+   .from("profiles")
+   .select("role,status")
+   .eq("id",data.user.id)
+   .single();
+
+  if(profileError)throw profileError;
+
+  if(profile.role!=="admin"||profile.status!=="approved"){
+   await client.auth.signOut();
+   throw new Error("Approved admin access required.");
+  }
+
+  document.getElementById("adminArea").classList.remove("hidden");
+  showMessage("Admin login successful.");
+  await loadDeliveries();
+
+ }catch(error){
+  showMessage(error.message||"Login failed.","error");
+ }
+}
+
+async function loadDeliveries(){
+ if(!adminSession)return;
+
+ const list=document.getElementById("deliveryList");
+ const select=document.getElementById("deliverySelect");
+
+ list.textContent="Loading...";
+ select.innerHTML='<option value="">Select a delivery</option>';
+
+ try{
+  const {data,error}=await client.rpc("get_driver_admin_panel");
+  if(error)throw error;
+
+  const deliveries=data.deliveries||[];
+
+  if(!deliveries.length){
+   list.textContent="No deliveries found.";
+   return;
+  }
+
+  deliveries.forEach(d=>{
+   const option=document.createElement("option");
+   option.value=d.delivery_id;
+   option.textContent=
+    d.delivery_number+" | "+(d.customer_name||"Customer")+
+    " | "+d.total_bags_sent+" bags";
+   select.appendChild(option);
+  });
+
+  list.innerHTML=deliveries.map(d=>`
+   <div class="delivery">
+    <strong>${safe(d.delivery_number)}</strong><br>
+    Customer: ${safe(d.customer_name)}<br>
+    Shop: ${safe(d.shop_name)}<br>
+    Driver: ${safe(d.driver_name||"Not assigned")}<br>
+    Mobile: ${safe(d.driver_mobile||"-")}<br>
+    Bags Sent: ${safe(d.total_bags_sent)}<br>
+    Delivery Status: ${safe(d.status)}<br>
+    Report: ${safe(d.report_status||"Not submitted")}
+   </div>
+  `).join("");
+
+ }catch(error){
+  list.textContent=error.message||"Could not load deliveries.";
+  showMessage(error.message||"Could not load deliveries.","error");
+ }
+}
+
+async function createDriverLink(){
+ if(!adminSession){
+  showMessage("Please login first.","error");
+  return;
+ }
+
+ const deliveryId=document.getElementById("deliverySelect").value;
+ const name=document.getElementById("driverName").value.trim();
+ const mobile=document.getElementById("driverMobile").value.trim();
+ const password=document.getElementById("driverPassword").value;
+
+ if(!deliveryId||!name||name.length<2||password.length<8){
+  showMessage("Select delivery, enter driver name and password of at least 8 characters.","error");
+  return;
+ }
+
+ const btn=document.getElementById("createBtn");
+ btn.disabled=true;
+ btn.textContent="Creating...";
+
+ try{
+  const {data,error}=await client.rpc("create_driver_delivery_access",{
+   p_delivery_id:deliveryId,
+   p_driver_name:name,
+   p_driver_mobile:mobile,
+   p_password:password
+  });
+
+  if(error)throw error;
+
+  if(!data||!data.token)throw new Error("Driver token was not returned.");
+
+  latestDriverLink=
+   "https://afsonakhan12-76.github.io/-INDIAN-MURI-FACTORY-/driver.html?token="+
+   encodeURIComponent(data.token);
+
+  document.getElementById("createdDriver").textContent=name;
+  document.getElementById("driverLink").value=latestDriverLink;
+  document.getElementById("linkCard").classList.remove("hidden");
+
+  document.getElementById("driverPassword").value="";
+  showMessage("Driver access created successfully.");
+  await loadDeliveries();
+
+ }catch(error){
+  showMessage(error.message||"Could not create driver link.","error");
+ }finally{
+  btn.disabled=false;
+  btn.textContent="Create Driver Link";
+ }
+}
+
+async function copyDriverLink(){
+ if(!latestDriverLink)return;
+ try{
+  await navigator.clipboard.writeText(latestDriverLink);
+  showMessage("Driver link copied.");
+ }catch(error){
+  document.getElementById("driverLink").select();
+  showMessage("Select and copy the link manually.","error");
+ }
+}
+
+function shareDriverLink(){
+ if(!latestDriverLink)return;
+ const message=
+  "Indian Muri Factory Driver Delivery Link:\n"+
+  latestDriverLink+
+  "\n\nPlease use the password provided separately.";
+ window.open("https://wa.me/?text="+encodeURIComponent(message),"_blank");
+}
+
+async function adminLogout(){
+ await client.auth.signOut();
+ document.getElementById("adminArea").classList.add("hidden");
+ document.getElementById("linkCard").classList.add("hidden");
+ showMessage("Logged out successfully.");
+}
+
+init();
+</script>
+</body>
+</html>
