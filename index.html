@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>INDIAN MURI FACTORY</title>
+<title>INDIAN MURI FACTORY | Dashboard</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
@@ -12,37 +12,70 @@
 <style>
 *{box-sizing:border-box}
 
+:root{
+ --green:#087443;
+ --dark:#064e3b;
+ --blue:#0284c7;
+ --light:#f1f8f5;
+}
+
 body{
  margin:0;
  font-family:Arial,sans-serif;
  color:#1e293b;
- background:linear-gradient(-45deg,#e0f2fe,#f0fdf4,#dbeafe,#ffffff);
- background-size:400% 400%;
- animation:bgMove 14s ease infinite;
+ background:#f1f5f9;
+ display:none;
 }
 
-@keyframes bgMove{
- 0%{background-position:0% 50%}
- 50%{background-position:100% 50%}
- 100%{background-position:0% 50%}
-}
+/* HEADER */
 
 header{
- background:linear-gradient(110deg,#064e3b,#166534,#0284c7);
+ height:75px;
+ background:linear-gradient(110deg,#064e3b,#087443,#0284c7);
  color:white;
- padding:16px 24px;
  display:flex;
- justify-content:space-between;
  align-items:center;
- gap:15px;
- flex-wrap:wrap;
+ justify-content:space-between;
+ padding:10px 25px;
+ position:sticky;
+ top:0;
+ z-index:1000;
  box-shadow:0 4px 15px #0002;
 }
 
 .brand{
- font-size:23px;
+ display:flex;
+ align-items:center;
+ gap:12px;
+ font-size:22px;
  font-weight:bold;
  letter-spacing:1px;
+}
+
+.brand-logo{
+ width:48px;
+ height:48px;
+ object-fit:contain;
+ background:white;
+ border-radius:10px;
+ padding:4px;
+}
+
+.header-right{
+ display:flex;
+ align-items:center;
+ gap:15px;
+}
+
+.menu-toggle{
+ display:none;
+ border:0;
+ background:#ffffff20;
+ color:white;
+ padding:10px 14px;
+ border-radius:8px;
+ font-size:22px;
+ cursor:pointer;
 }
 
 .logout{
@@ -51,103 +84,150 @@ header{
  border:0;
  border-radius:8px;
  padding:12px 20px;
- font-size:14px;
  font-weight:bold;
  cursor:pointer;
- transition:.3s;
 }
 
-.logout:hover{
- background:#991b1b;
- transform:scale(1.06);
-}
+.logout:hover{background:#991b1b}
+
+/* LAYOUT */
 
 .layout{
  display:flex;
- min-height:calc(100vh - 65px);
+ min-height:calc(100vh - 75px);
 }
 
 nav{
- width:245px;
+ width:255px;
  flex-shrink:0;
- background:linear-gradient(180deg,#064e3b,#14532d,#166534);
+ background:linear-gradient(180deg,#064e3b,#14532d);
  padding:18px 12px;
  box-shadow:3px 0 15px #0001;
+}
+
+.nav-title{
+ color:#bbf7d0;
+ font-size:12px;
+ font-weight:bold;
+ padding:10px 12px;
+ letter-spacing:2px;
 }
 
 nav button{
  width:100%;
  display:block;
- padding:14px 15px;
+ padding:13px 14px;
  margin:5px 0;
  border:0;
- border-radius:8px;
+ border-radius:9px;
  background:transparent;
  color:white;
  text-align:left;
  font-size:14px;
  cursor:pointer;
- transition:.3s;
+ transition:.25s;
 }
 
 nav button:hover,
 nav button.active{
- background:linear-gradient(90deg,#22c55e,#0ea5e9);
- transform:translateX(5px);
- box-shadow:0 4px 12px #0002;
+ background:linear-gradient(90deg,#22c55e,#0284c7);
+ transform:translateX(4px);
 }
+
+/* MAIN BACKGROUND */
 
 main{
  flex:1;
  min-width:0;
- padding:22px;
-}
-
-.banner{
- width:100%;
+ padding:25px;
+ position:relative;
+ isolation:isolate;
  overflow:hidden;
- border-radius:15px;
- box-shadow:0 6px 22px #0002;
- margin-bottom:25px;
- border:4px solid white;
 }
 
-.banner img{
- display:block;
+.dashboard-video{
+ position:absolute;
+ inset:0;
  width:100%;
- height:auto;
- max-height:350px;
+ height:100%;
  object-fit:cover;
- transition:transform .6s;
+ z-index:-2;
+ opacity:.28;
 }
 
-.banner:hover img{
- transform:scale(1.02);
+.main-overlay{
+ position:absolute;
+ inset:0;
+ background:linear-gradient(
+  135deg,
+  rgba(240,253,244,.93),
+  rgba(219,234,254,.88)
+ );
+ z-index:-1;
 }
 
-.welcome{
- background:linear-gradient(110deg,#ffffff,#ecfdf5);
- border-left:6px solid #16a34a;
- padding:18px 22px;
- border-radius:12px;
- margin-bottom:22px;
- box-shadow:0 3px 12px #0000000c;
+/* HERO */
+
+.hero{
+ display:flex;
+ align-items:center;
+ justify-content:space-between;
+ gap:20px;
+ flex-wrap:wrap;
+ background:linear-gradient(110deg,#064e3bdf,#0284c7dd);
+ color:white;
+ padding:28px;
+ border-radius:17px;
+ margin-bottom:23px;
+ box-shadow:0 8px 25px #0002;
 }
 
-.welcome h2{
- margin:0 0 8px;
- color:#166534;
+.hero h1{
+ margin:0 0 10px;
+ font-size:28px;
 }
 
-.welcome p{
+.hero p{
  margin:0;
- color:#64748b;
+ color:#e0f2fe;
+ line-height:1.6;
 }
 
-.section-title{
- color:#14532d;
- margin:22px 0 15px;
+.hero-logo{
+ width:120px;
+ height:100px;
+ object-fit:contain;
+ background:#ffffffee;
+ padding:10px;
+ border-radius:15px;
 }
+
+/* SECTION */
+
+.section-heading{
+ display:flex;
+ justify-content:space-between;
+ align-items:center;
+ flex-wrap:wrap;
+ gap:10px;
+ margin:24px 0 16px;
+}
+
+.section-heading h2{
+ color:#14532d;
+ margin:0;
+ font-size:21px;
+}
+
+.date-label{
+ background:#ffffffd9;
+ padding:10px 14px;
+ border-radius:8px;
+ font-size:13px;
+ color:#475569;
+}
+
+/* DASHBOARD CARDS */
 
 .cards{
  display:grid;
@@ -156,64 +236,118 @@ main{
 }
 
 .card{
- background:rgba(255,255,255,.92);
- padding:23px;
- border-radius:13px;
- box-shadow:0 4px 15px #0000000d;
- border-bottom:4px solid #22c55e;
+ background:rgba(255,255,255,.87);
+ backdrop-filter:blur(10px);
+ -webkit-backdrop-filter:blur(10px);
+ padding:22px;
+ border-radius:15px;
+ border:1px solid #ffffff;
+ border-bottom:4px solid #16a34a;
+ box-shadow:0 5px 20px #00000010;
  transition:.3s;
- animation:cardIn .7s ease both;
+ animation:cardIn .6s ease both;
 }
 
 .card:hover{
- transform:translateY(-7px);
- box-shadow:0 10px 25px #0002;
+ transform:translateY(-6px);
+ box-shadow:0 12px 25px #0002;
+}
+
+.card-top{
+ display:flex;
+ align-items:center;
+ justify-content:space-between;
+ gap:10px;
 }
 
 .card small{
  color:#64748b;
- font-size:14px;
-}
-
-.card h2{
- margin:12px 0 0;
- color:#166534;
- font-size:27px;
+ font-size:13px;
+ font-weight:bold;
 }
 
 .card-icon{
- font-size:27px;
- margin-bottom:12px;
+ width:48px;
+ height:48px;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ font-size:25px;
+ background:#dcfce7;
+ border-radius:12px;
 }
+
+.card h2{
+ margin:17px 0 0;
+ font-size:27px;
+ color:#14532d;
+}
+
+.card.sales{border-bottom-color:#16a34a}
+.card.expenses{border-bottom-color:#ef4444}
+.card.profit{border-bottom-color:#0284c7}
+.card.customers{border-bottom-color:#8b5cf6}
+.card.production{border-bottom-color:#eab308}
+.card.stock{border-bottom-color:#0ea5e9}
+
+.card.expenses .card-icon{background:#fee2e2}
+.card.profit .card-icon{background:#dbeafe}
+.card.customers .card-icon{background:#ede9fe}
+.card.production .card-icon{background:#fef3c7}
+.card.stock .card-icon{background:#e0f2fe}
+
+/* FACTORY PANEL */
 
 .panel{
- background:white;
- margin-top:22px;
- padding:22px;
- border-radius:13px;
- box-shadow:0 4px 15px #0000000d;
+ background:rgba(255,255,255,.91);
+ backdrop-filter:blur(10px);
+ padding:24px;
+ border-radius:15px;
+ margin-top:24px;
+ box-shadow:0 5px 20px #00000010;
+ border-left:5px solid #16a34a;
 }
 
-.action{
- background:#15803d;
- color:white;
+.panel h3{
+ color:#14532d;
+ margin-top:0;
+}
+
+.quick-actions{
+ display:grid;
+ grid-template-columns:repeat(4,minmax(0,1fr));
+ gap:12px;
+ margin-top:18px;
+}
+
+.quick-actions button{
  border:0;
- border-radius:7px;
- padding:11px 17px;
+ padding:16px 10px;
+ border-radius:10px;
+ background:#e8f5eb;
+ color:#14532d;
+ font-weight:bold;
  cursor:pointer;
+ transition:.2s;
 }
 
-input,select{
- padding:11px;
- border:1px solid #cbd5e1;
- border-radius:7px;
- margin:5px;
+.quick-actions button:hover{
+ background:#bbf7d0;
+ transform:translateY(-3px);
+}
+
+/* TABLE */
+
+.table-wrap{
+ overflow-x:auto;
+ margin-top:15px;
 }
 
 table{
  width:100%;
  border-collapse:collapse;
  min-width:500px;
+ background:white;
 }
 
 th,td{
@@ -222,16 +356,9 @@ th,td{
  text-align:left;
 }
 
-th{
- background:#e8f5eb;
-}
+th{background:#e8f5eb}
 
-@keyframes cardIn{
- from{opacity:0;transform:translateY(20px)}
- to{opacity:1;transform:translateY(0)}
-}
-
-/* Logout animation */
+/* LOGOUT */
 
 #logoutScreen{
  position:fixed;
@@ -245,14 +372,7 @@ th{
  color:white;
 }
 
-#logoutScreen.show{
- display:flex;
- animation:fadeIn .5s ease;
-}
-
-#logoutScreen h2{
- animation:logoutText 1s ease infinite alternate;
-}
+#logoutScreen.show{display:flex}
 
 .loader{
  width:48px;
@@ -263,40 +383,88 @@ th{
  animation:spin 1s linear infinite;
 }
 
+.action{
+ background:#15803d;
+ color:white;
+ border:0;
+ border-radius:7px;
+ padding:11px 17px;
+ cursor:pointer;
+}
+
 @keyframes spin{
  to{transform:rotate(360deg)}
 }
 
-@keyframes fadeIn{
- from{opacity:0}
- to{opacity:1}
+@keyframes cardIn{
+ from{opacity:0;transform:translateY(20px)}
+ to{opacity:1;transform:translateY(0)}
 }
 
-@keyframes logoutText{
- from{opacity:.5}
- to{opacity:1}
-}
+/* TABLET */
 
 @media(max-width:950px){
  .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+ nav{width:220px}
+ .quick-actions{grid-template-columns:repeat(2,1fr)}
 }
 
+/* MOBILE */
+
 @media(max-width:650px){
- .layout{display:block}
- nav{
-  width:100%;
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  padding:10px;
+
+ header{
+  height:65px;
+  padding:8px 12px;
  }
- nav button{font-size:12px;padding:12px 8px}
+
+ .brand{font-size:15px;letter-spacing:0}
+ .brand-logo{width:38px;height:38px}
+
+ .menu-toggle{display:block}
+ .logout{padding:10px 12px;font-size:12px}
+
+ .layout{display:block}
+
+ nav{
+  display:none;
+  width:100%;
+  padding:12px;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+
+ nav.open{display:grid}
+
+ .nav-title{grid-column:1/-1}
+
+ nav button{
+  font-size:12px;
+  padding:12px 8px;
+  margin:3px 0;
+ }
+
  main{padding:12px}
- header{padding:14px}
- .brand{font-size:17px}
- .cards{grid-template-columns:1fr 1fr;gap:10px}
- .card{padding:15px}
- .card h2{font-size:21px}
- .banner img{max-height:190px}
+
+ .hero{
+  padding:20px;
+  border-radius:13px;
+ }
+
+ .hero h1{font-size:21px}
+ .hero-logo{width:75px;height:75px}
+
+ .section-heading h2{font-size:18px}
+
+ .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+
+ .card{padding:13px;border-radius:12px}
+ .card-icon{width:38px;height:38px;font-size:20px}
+ .card small{font-size:11px}
+ .card h2{font-size:19px;margin-top:12px}
+
+ .panel{padding:16px}
+
+ .quick-actions{grid-template-columns:repeat(2,1fr)}
 }
 
 @media(prefers-reduced-motion:reduce){
@@ -308,103 +476,162 @@ th{
 </style>
 </head>
 
-<body style="display:none">
+<body>
 
 <header>
- <div class="brand">🏭 INDIAN MURI FACTORY</div>
- <button class="logout" id="logoutBtn" onclick="logout()">
-  ↪ Logout
- </button>
+ <div class="brand">
+  <img src="factory-logo.png" class="brand-logo"
+       alt="Factory Logo">
+  <span>INDIAN MURI FACTORY</span>
+ </div>
+
+ <div class="header-right">
+  <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+  <button class="logout" id="logoutBtn" onclick="logout()">
+   ↪ Logout
+  </button>
+ </div>
 </header>
 
 <div class="layout">
 
-<nav>
- <button class="active" onclick="showPage('Dashboard',this)">🏠 Dashboard</button>
+<nav id="sidebar">
+ <div class="nav-title">MAIN MENU</div>
+
+ <button class="active" onclick="goDashboard(this)">🏠 Dashboard</button>
  <button onclick="location.href='customers.html'">👥 Customers</button>
  <button onclick="location.href='suppliers.html'">🚚 Suppliers</button>
  <button onclick="location.href='purchases.html'">📦 Purchases</button>
-<button onclick="location.href='production.html'">Production</button>
+ <button onclick="location.href='production.html'">🏭 Production</button>
  <button onclick="location.href='inventory.html'">📋 Inventory / Stock</button>
-  <button onclick="location.href='sales.html'">🧾 💰 Sales</button>
+ <button onclick="location.href='sales.html'">🧾 Sales</button>
  <button onclick="location.href='products.html'">🛍 Products</button>
  <button onclick="location.href='invoice.html'">🧾 Invoices</button>
  <button onclick="location.href='deliveries.html'">🚚 Delivery Management</button>
  <button onclick="location.href='driver-admin.html'">👨‍✈️ Driver Admin Panel</button>
+
+ <div class="nav-title">FACTORY ACCOUNTS</div>
+
  <button onclick="showPage('Workers',this)">👷 Workers</button>
  <button onclick="showPage('Expenses',this)">💳 Expenses</button>
  <button onclick="showPage('Cash & Bank',this)">🏦 Cash & Bank</button>
-<button onclick="location.href='reports.html'">
-    📊 Reports & Excel Export
-</button>
+ <button onclick="location.href='reports.html'">📊 Reports & Excel Export</button>
  <button onclick="showPage('Settings',this)">⚙ Settings</button>
 </nav>
 
 <main id="content">
 
-<!-- FACTORY BANNER -->
-<div class="banner">
- <img src="factory-logo.png"
-      alt="INDIAN MURI FACTORY Banner">
+<video class="dashboard-video"
+ autoplay muted loop playsinline>
+ <source src="factory-video.mp4" type="video/mp4">
+</video>
+
+<div class="main-overlay"></div>
+
+<!-- HERO -->
+
+<div class="hero">
+ <div>
+  <h1>Welcome to INDIAN MURI FACTORY</h1>
+  <p>
+   Fresh • Healthy • Tasty<br>
+   Factory Management Dashboard
+  </p>
+ </div>
+
+ <img src="factory-logo.png" class="hero-logo"
+      alt="Indian Muri Factory">
 </div>
 
-<div class="welcome">
- <h2>Welcome to INDIAN MURI FACTORY</h2>
- <p>Fresh • Healthy • Tasty | Factory Management Dashboard</p>
-</div>
+<!-- OVERVIEW -->
 
-<h3 class="section-title">📊 Business Overview</h3>
+<div class="section-heading">
+ <h2>📊 Business Overview</h2>
+ <div class="date-label" id="todayDate"></div>
+</div>
 
 <div class="cards">
 
- <div class="card">
-  <div class="card-icon">💰</div>
-  <small>Total Sales</small>
+ <div class="card sales">
+  <div class="card-top">
+   <small>Total Sales</small>
+   <div class="card-icon">💰</div>
+  </div>
   <h2>₹ 0.00</h2>
  </div>
 
- <div class="card">
-  <div class="card-icon">💳</div>
-  <small>Total Expenses</small>
+ <div class="card expenses">
+  <div class="card-top">
+   <small>Total Expenses</small>
+   <div class="card-icon">💳</div>
+  </div>
   <h2>₹ 0.00</h2>
  </div>
 
- <div class="card">
-  <div class="card-icon">📈</div>
-  <small>Net Profit</small>
+ <div class="card profit">
+  <div class="card-top">
+   <small>Net Profit</small>
+   <div class="card-icon">📈</div>
+  </div>
   <h2>₹ 0.00</h2>
  </div>
 
- <div class="card">
-  <div class="card-icon">👥</div>
-  <small>Total Customers</small>
+ <div class="card customers">
+  <div class="card-top">
+   <small>Total Customers</small>
+   <div class="card-icon">👥</div>
+  </div>
   <h2>0</h2>
  </div>
 
- <div class="card">
-  <div class="card-icon">🏭</div>
-  <small>Today's Production</small>
+ <div class="card production">
+  <div class="card-top">
+   <small>Today's Production</small>
+   <div class="card-icon">🏭</div>
+  </div>
   <h2>0 KG</h2>
  </div>
 
- <div class="card">
-  <div class="card-icon">📦</div>
-  <small>Finished Stock</small>
+ <div class="card stock">
+  <div class="card-top">
+   <small>Finished Stock</small>
+   <div class="card-icon">📦</div>
+  </div>
   <h2>0 Bags</h2>
  </div>
 
 </div>
 
+<!-- FACTORY MANAGEMENT -->
+
 <div class="panel">
  <h3>🏭 Factory Management</h3>
- <p>Manage your purchases, production, stock, sales and expenses from one place.</p>
- <p>INDIAN MURI FACTORY Management System.</p>
+ <p>
+  Manage your purchases, production, stock, sales and expenses
+  from one professional dashboard.
+ </p>
+
+ <div class="quick-actions">
+  <button onclick="location.href='sales.html'">🧾 New Sale</button>
+  <button onclick="location.href='production.html'">🏭 Production</button>
+  <button onclick="location.href='purchases.html'">📦 Purchase</button>
+  <button onclick="location.href='reports.html'">📊 Reports</button>
+ </div>
+</div>
+
+<div class="panel">
+ <h3>🌿 INDIAN MURI FACTORY</h3>
+ <p>
+  Factory Management System<br>
+  Fresh • Healthy • Tasty
+ </p>
 </div>
 
 </main>
 </div>
 
-<!-- LOGOUT ANIMATION SCREEN -->
+<!-- LOGOUT SCREEN -->
+
 <div id="logoutScreen">
  <div class="loader"></div>
  <h2>Logging Out...</h2>
@@ -412,12 +639,14 @@ th{
 </div>
 
 <script>
+/* SUPABASE CONNECTION */
+
 const db = window.supabase.createClient(
  window.SUPABASE_CONFIG.URL,
  window.SUPABASE_CONFIG.KEY
 );
 
-// LOGIN PROTECTION
+/* LOGIN PROTECTION */
 
 async function checkLogin(){
  try{
@@ -437,7 +666,82 @@ async function checkLogin(){
 
 checkLogin();
 
-// LOGOUT WITH ANIMATION
+/* DATE */
+
+document.getElementById("todayDate").textContent =
+ new Date().toLocaleDateString("en-IN",{
+  weekday:"long",
+  year:"numeric",
+  month:"long",
+  day:"numeric"
+});
+
+/* MOBILE MENU */
+
+function toggleMenu(){
+ document.getElementById("sidebar").classList.toggle("open");
+}
+
+/* DASHBOARD NAVIGATION */
+
+function goDashboard(btn){
+ document.querySelectorAll("nav button")
+ .forEach(b=>b.classList.remove("active"));
+
+ btn.classList.add("active");
+
+ window.location.reload();
+}
+
+/* OTHER SECTIONS */
+
+function showPage(name,btn){
+
+ document.querySelectorAll("nav button")
+ .forEach(b=>b.classList.remove("active"));
+
+ btn.classList.add("active");
+
+ document.getElementById("content").innerHTML =
+ '<h2>'+name+'</h2>'+
+ '<div class="panel">'+
+ '<h3>'+name+' Management</h3>'+
+ '<input id="entry" placeholder="Enter details">'+
+ '<button class="action" onclick="addEntry()">Add New</button>'+
+ '<div class="table-wrap">'+
+ '<table><thead><tr><th>Entry</th><th>Date</th></tr></thead>'+
+ '<tbody id="rows"></tbody></table></div></div>';
+
+ if(window.innerWidth<=650){
+  document.getElementById("sidebar").classList.remove("open");
+ }
+}
+
+/* ADD ENTRY */
+
+function addEntry(){
+
+ const input=document.getElementById("entry");
+
+ if(!input.value.trim()){
+  alert("Please enter details");
+  return;
+ }
+
+ const row=document.createElement("tr");
+ const a=document.createElement("td");
+ const b=document.createElement("td");
+
+ a.textContent=input.value;
+ b.textContent=new Date().toLocaleDateString("en-IN");
+
+ row.append(a,b);
+
+ document.getElementById("rows").appendChild(row);
+ input.value="";
+}
+
+/* LOGOUT */
 
 async function logout(){
 
@@ -468,51 +772,6 @@ async function logout(){
   btn.disabled=false;
   alert("Logout failed. Please try again.");
  }
-}
-
-// NAVIGATION
-
-function showPage(name,btn){
-
- document.querySelectorAll("nav button")
- .forEach(b=>b.classList.remove("active"));
-
- btn.classList.add("active");
-
- document.getElementById("content").innerHTML=
- '<h2>'+name+'</h2>'+
- '<div class="panel">'+
- '<h3>'+name+' Management</h3>'+
- '<input id="entry" placeholder="Enter details">'+
- '<button class="action" onclick="addEntry()">Add New</button>'+
- '<div style="overflow:auto;margin-top:15px">'+
- '<table><thead><tr><th>Entry</th><th>Date</th></tr></thead>'+
- '<tbody id="rows"></tbody></table></div></div>';
-}
-
-// ADD ENTRY
-
-function addEntry(){
-
- const input=document.getElementById("entry");
-
- if(!input.value.trim()){
-  alert("Please enter details");
-  return;
- }
-
- const row=document.createElement("tr");
- const a=document.createElement("td");
- const b=document.createElement("td");
-
- a.textContent=input.value;
- b.textContent=new Date().toLocaleDateString("en-IN");
-
- row.append(a,b);
-
- document.getElementById("rows").appendChild(row);
-
- input.value="";
 }
 </script>
 
